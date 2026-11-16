@@ -1,0 +1,355 @@
+name: 🚀 Release – Build & Publish Laryko
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '20'
+  RUST_VERSION: stable
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Job 1: Build Web (Vite) + PWA
+  # ─────────────────────────────────────────────────────────────
+  build-web:
+    name: 🌐 Build Web / PWA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite + PWA
+        run: npm run build
+        env:
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_GITHUB_REPO: larykoCom/laryko
+          VITE_IS_APP_STORE: 'false'
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 2: Build Tauri – Windows
+  # ─────────────────────────────────────────────────────────────
+  build-tauri-windows:
+    name: 🪟 Build Tauri Windows
+    needs: build-web
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Build Tauri (Windows)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_GITHUB_REPO: larykoCom/laryko
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Laryko ${{ github.ref_name }}'
+          releaseBody: 'See changelog for details.'
+          releaseDraft: false
+          prerelease: false
+          args: --target x86_64-pc-windows-msvc
+
+      - name: Rename Windows artifact
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe" | Select-Object -First 1
+          if ($exe) { Copy-Item $exe.FullName "Laryko-Windows.exe" }
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Laryko-Windows
+          path: Laryko-Windows.exe
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 3: Build Tauri – macOS
+  # ─────────────────────────────────────────────────────────────
+  build-tauri-macos:
+    name: 🍎 Build Tauri macOS
+    needs: build-web
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Build Tauri (macOS universal)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_GITHUB_REPO: larykoCom/laryko
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Laryko ${{ github.ref_name }}'
+          releaseDraft: false
+          prerelease: false
+          args: --target universal-apple-darwin
+
+      - name: Rename macOS artifact
+        run: |
+          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+          [ -n "$DMG" ] && cp "$DMG" Laryko-macOS.dmg
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Laryko-macOS
+          path: Laryko-macOS.dmg
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 4: Build Tauri – Linux
+  # ─────────────────────────────────────────────────────────────
+  build-tauri-linux:
+    name: 🐧 Build Tauri Linux
+    needs: build-web
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf fuse
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Build Tauri (Linux)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_GITHUB_REPO: larykoCom/laryko
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Laryko ${{ github.ref_name }}'
+          releaseDraft: false
+          prerelease: false
+
+      - name: Rename Linux AppImage
+        run: |
+          APPIMAGE=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" | head -1)
+          [ -n "$APPIMAGE" ] && cp "$APPIMAGE" Laryko-Linux.AppImage
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Laryko-Linux
+          path: Laryko-Linux.AppImage
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 5: Build Android (Capacitor) – APK sin firma para sideload
+  # ─────────────────────────────────────────────────────────────
+  build-android:
+    name: 🤖 Build Android APK
+    needs: build-web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Capacitor sync Android
+        run: npx cap sync android
+
+      - name: Build debug APK (sideload)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Laryko-Android.apk
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Laryko-Android
+          path: Laryko-Android.apk
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 6: Build iOS IPA sin firma (SideStore / AltStore)
+  # ─────────────────────────────────────────────────────────────
+  build-ios:
+    name: 📱 Build iOS IPA (unsigned)
+    needs: build-web
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Capacitor sync iOS
+        run: npx cap sync ios
+
+      - name: Build unsigned IPA (SideStore / AltStore)
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/Laryko.xcarchive \
+            archive \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+          mkdir -p build/Payload
+          cp -r build/Laryko.xcarchive/Products/Applications/App.app build/Payload/Laryko.app
+          cd build && zip -r Laryko-iOS.ipa Payload/
+
+      - name: Upload iOS IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Laryko-iOS
+          path: build/Laryko-iOS.ipa
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 7: Publish Release con artefactos de nombre fijo
+  # ─────────────────────────────────────────────────────────────
+  publish-release:
+    name: 📦 Publish GitHub Release
+    needs:
+      - build-tauri-windows
+      - build-tauri-macos
+      - build-tauri-linux
+      - build-android
+      - build-ios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Get changelog from tag annotation
+        id: tag
+        run: |
+          TAG_MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}" 2>/dev/null || echo "")
+          echo "body=${TAG_MSG:-Release ${{ github.ref_name }}}" >> $GITHUB_OUTPUT
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Laryko ${{ github.ref_name }}
+          body: ${{ steps.tag.outputs.body }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/Laryko-Windows/Laryko-Windows.exe
+            artifacts/Laryko-macOS/Laryko-macOS.dmg
+            artifacts/Laryko-Linux/Laryko-Linux.AppImage
+            artifacts/Laryko-Android/Laryko-Android.apk
+            artifacts/Laryko-iOS/Laryko-iOS.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.laryko"],
+        "components": [
+          {
+            "/": "/",
+            "comment": "Matches all paths"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID.com.laryko"]
+  },
+  "activitycontinuation": {
+    "apps": ["TEAMID.com.laryko"]
+  }
+}
