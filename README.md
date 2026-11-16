@@ -151,6 +151,31 @@ laryko/
 
 ---
 
+## 🛡️ Seguridad y Auditoría Continua
+
+El proyecto implementa la metodología de auditoría de seguridad de [Cloudflare Security Audit](https://github.com/cloudflare/security-audit-skill) tanto localmente como en CI/CD:
+
+1. **Pre-commit Hook Local (`.githooks/pre-commit`):**
+   - Intercepta cada commit antes de registrarse.
+   - Bloquea intentos de commitear archivos sensibles (`.env`, `.pem`, `.key`).
+   - Verifica la integridad estricta de tipos en TypeScript (`tsc --noEmit`).
+
+2. **GitHub Actions Workflow (`.github/workflows/security-audit.yml`):**
+   - **Supply Chain:** Ejecuta `pnpm audit` para bloquear paquetes vulnerables.
+   - **Type & Build Integrity:** Compila y verifica consistencia de tipos en cada PR o Push.
+   - **Límites de Confianza:** Verifica que no existan credenciales versionadas y valida la consistencia de los App IDs (`com.laryko`) en Capacitor y Tauri.
+
+Comandos de auditoría rápida:
+```bash
+# Auditar vulnerabilidades de dependencias
+pnpm run audit
+
+# Auditoría completa de dependencias y tipos
+pnpm run security:check
+```
+
+---
+
 ## 🚀 Publicación y Release Automático
 
 Para compilar y publicar los binarios de todas las plataformas simultáneamente:
