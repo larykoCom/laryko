@@ -19,3 +19,35 @@
 3. **Principio de Cambio Mínimo Seguro:**
    - La modificación debe ser la más pequeña, limpia y segura posible.
    - Prohibido relajar restricciones de seguridad, eludir sandbox o desactivar advertencias de tipo sin justificación explícita documentada.
+
+---
+
+# Regla Obligatoria de Sincronización Global de Versión y Copyright (Todas las Plataformas)
+
+> [!IMPORTANT]
+> **CONSISTENCIA GLOBAL DE METADATOS (macOS, Windows, Linux, Android, iOS, Web)**:
+> En cada incremento, actualización o publicación de versión, la versión y el año de copyright DEBEN mantenerse estrictamente sincronizados en todas las plataformas y ejecutables sin discrepancias.
+
+## 1. Fuente de la Verdad Única:
+- **Versión:** `package.json` es la fuente canónica para la versión de la app (`version`).
+- **Copyright:** El año en curso (`new Date().getFullYear()`) es la fuente canónica para el año de copyright en toda la suite de aplicaciones.
+
+## 2. Archivos Sincronizados Obligatoriamente:
+- **Escritorio (Tauri - macOS, Windows, Linux):**
+  - `src-tauri/tauri.conf.json` (`version` y `bundle.copyright = "Copyright © <AÑO> Laryko"`).
+  - `src-tauri/Cargo.toml` (`[package] version = "<VER>"`).
+- **Android (Capacitor):**
+  - `android/app/build.gradle` (`versionName "<VER>"` y `versionCode <CODE>`).
+- **iOS (Capacitor / Xcode):**
+  - `ios/App/App.xcodeproj/project.pbxproj` (`MARKETING_VERSION = <VER>;` y `CURRENT_PROJECT_VERSION = <CODE>;`).
+- **Web / PWA:**
+  - `.env` y `.env.example` (`VITE_APP_VERSION=<VER>`).
+  - `src/hooks/usePlatform.ts` (fallback por defecto).
+- **Legal:**
+  - `LICENSE` (`Copyright (c) <AÑO> Laryko`).
+
+## 3. Automatización y Verificación:
+- **Ejecutar sincronización:** `pnpm run sync:version` (o `node scripts/sync-version.mjs [nueva_version]`).
+- **Prebuild automático:** `pnpm run prebuild` ejecuta la sincronización antes de compilar.
+- **Verificación en CI/CD:** `pnpm run sync:check` (`--check`) verifica que ningún archivo contenga versiones o años desfasados antes de generar artefactos de release.
+

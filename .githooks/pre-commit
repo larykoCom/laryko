@@ -27,5 +27,15 @@ if command -v pnpm >/dev/null 2>&1; then
   }
 fi
 
+# 4. Verificación de sincronización de versión y copyright en todas las plataformas
+echo "🔄 Verificando sincronización de versiones y copyright..."
+if command -v node >/dev/null 2>&1 && [ -f "scripts/sync-version.mjs" ]; then
+  node scripts/sync-version.mjs --check || {
+    echo "❌ ERROR: Las versiones o el año de copyright están desincronizados entre plataformas."
+    echo "Ejecuta 'pnpm run sync:version' para sincronizarlos automáticamente."
+    exit 1
+  }
+fi
+
 echo "✅ Auditoría de pre-commit aprobada exitosamente."
 exit 0

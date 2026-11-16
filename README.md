@@ -1,208 +1,61 @@
 # ⚡ Laryko
 
-> Aplicación multiplataforma **offline-first** — Web (PWA), iOS, Android, Windows, macOS, Linux.
+> Aplicación multiplataforma y **offline-first** — disponible en Web, iOS, Android, Windows, macOS y Linux.
 
 [![Release](https://img.shields.io/github/v/release/larykoCom/laryko?style=flat-square&color=3b82f6)](https://github.com/larykoCom/laryko/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![Vercel](https://img.shields.io/badge/web-laryko.com-blue?style=flat-square)](https://laryko.com)
+[![Web](https://img.shields.io/badge/web-laryko.com-blue?style=flat-square)](https://laryko.com)
 
 ---
 
-## 🚀 Stack Tecnológico
+## ✨ Características
 
-| Capa | Tecnología | Descripción |
-|------|-----------|-------------|
-| **Core UI & Web (PWA)** | **Vite + React 18 + TypeScript** | Código 100% compartido en `src/`, PWA con autoUpdate via `vite-plugin-pwa` |
-| **Estilos** | **CSS Nativo** | CSS Modules (`*.module.css`) + CSS Custom Properties con detección automática de tema claro/oscuro (`prefers-color-scheme`). Sin Tailwind ni librerías CSS pesadas |
-| **Móvil Nativo** | **Capacitor.js v6** | Envoltorio nativo para iOS (`.ipa` / App Store) y Android (`.apk` / Play Store) |
-| **Escritorio Nativo** | **Tauri v2** | Binarios ligeros nativos en Rust para Windows (`.exe`), macOS (`.dmg`), Linux (`.AppImage`) |
-| **Persistencia Offline-First** | **Dexie.js (IndexedDB)** | Almacenamiento reactivo local que funciona 100% offline en todas las plataformas |
-| **Detección de Red** | **`useOnlineStatus`** | Capacitor Network + `navigator.onLine` |
-| **Hosting Web** | **Vercel** | Desplegado en `https://laryko.com` con rewrites SPA y cabeceras de caché óptimas |
+- ⚡ **Offline-First:** Funciona al 100% sin conexión a internet. Tus notas y datos se guardan de forma instantánea y segura en tu dispositivo.
+- 📱 **Multiplataforma:** Disponible para tu ordenador de escritorio, tu móvil o directamente desde cualquier navegador web.
+- 🌓 **Tema Adaptativo:** Detección automática de modo claro y modo oscuro según las preferencias de tu sistema.
+- 🔄 **Actualizaciones Integradas:** Te notifica automáticamente cuando hay nuevas versiones disponibles para mantener la aplicación al día con un solo clic.
+- 🔒 **Privacidad Total:** Tus datos locales residen en tu propio dispositivo.
 
 ---
 
-## 🏷️ Identificadores y Dominio
+## 📥 Descargas e Instalación
 
-- **Nombre:** `Laryko`
-- **Application ID / Bundle ID:** `com.laryko`
-- **Dominio Oficial:** `https://laryko.com`
-- **Custom URL Scheme:** `laryko://`
-- **Rutas reservadas:**
-  - Universal Links (iOS): `https://laryko.com/.well-known/apple-app-site-association`
-  - Android App Links: `https://laryko.com/.well-known/assetlinks.json`
+Puedes acceder a la versión web o descargar la aplicación para tu sistema operativo:
 
----
+| Plataforma | Descarga / Acceso | Notas |
+|------------|-------------------|-------|
+| 🌐 **Web (PWA)** | [Abrir en laryko.com](https://laryko.com) | Acceso directo; puedes instalarla como app desde tu navegador |
+| 🪟 **Windows** | [Descargar para Windows (.exe)](https://github.com/larykoCom/laryko/releases/latest/download/Laryko-Windows.exe) | Instalador ejecutable estándar |
+| 🍎 **macOS** | [Descargar para macOS (.dmg)](https://github.com/larykoCom/laryko/releases/latest/download/Laryko-macOS.dmg) | Imagen de disco universal para Mac |
+| 🐧 **Linux** | [Descargar para Linux (.AppImage)](https://github.com/larykoCom/laryko/releases/latest/download/Laryko-Linux.AppImage) | AppImage portable (dar permisos con `chmod +x`) |
+| 🤖 **Android** | [Descargar para Android (.apk)](https://github.com/larykoCom/laryko/releases/latest/download/Laryko-Android.apk) | Instalación directa del archivo APK |
+| 📱 **iOS** | [Descargar para iOS (.ipa)](https://github.com/larykoCom/laryko/releases/latest/download/Laryko-iOS.ipa) | Instalación mediante SideStore o AltStore |
 
-## 📦 Nombres Fijos de Binarios en GitHub Releases
-
-Para facilitar la distribución directa y sideloading sin cambiar URLs en cada release, todos los artefactos usan nombres fijos sin número de versión:
-
-| Plataforma | Nombre de Artefacto | Canal de Distribución |
-|------------|---------------------|-----------------------|
-| **iOS** | `Laryko-iOS.ipa` | SideStore / AltStore (unsigned) |
-| **Android** | `Laryko-Android.apk` | Sideload directo APK |
-| **Windows** | `Laryko-Windows.exe` | Instalador NSIS / Standalone |
-| **macOS** | `Laryko-macOS.dmg` | Imagen de disco macOS (Universal) |
-| **Linux** | `Laryko-Linux.AppImage` | AppImage portable para Linux x86_64 |
+> [!TIP]
+> Puedes ver el historial de cambios y versiones anteriores en la sección de [Releases de GitHub](https://github.com/larykoCom/laryko/releases).
 
 ---
 
-## 🔄 Sistema Integrado de Actualizaciones (`useAppUpdater`)
+## 📲 Cómo instalar como aplicación Web (PWA)
 
-Al iniciar la app o presionar **"Buscar actualizaciones"**:
-1. Consulta `https://api.github.com/repos/larykoCom/laryko/releases/latest`.
-2. Compara el `tag_name` del último release contra la versión local (`v0.1.0`).
-3. Si existe una versión más reciente, despliega el modal interactivo con las notas del release y ejecuta la acción adecuada por plataforma:
-   - **Web / PWA:** Activa el Service Worker pendiente (`SKIP_WAITING`) y recarga la página.
-   - **iOS (SideStore):** Lanza el esquema de instalación directa en SideStore: `sidestore://install?url=https://github.com/larykoCom/laryko/releases/latest/download/Laryko-iOS.ipa` (con flag `IS_APP_STORE` listo para alternar a App Store).
-   - **Android:** Descarga el APK fijo `Laryko-Android.apk`.
-   - **Windows / macOS / Linux:** Descarga el binario directo o dispara el updater nativo de Tauri v2.
+Si prefieres usar la versión web sin descargar instaladores pesados, puedes agregarla como aplicación independiente:
+
+1. **Google Chrome / Edge / Brave:** Abre [laryko.com](https://laryko.com) y pulsa en el icono de **Instalar** (o menú de opciones > *Instalar Laryko*).
+2. **Safari (iPhone / iPad / Mac):** Abre [laryko.com](https://laryko.com), presiona el botón **Compartir** y selecciona **"Añadir a la pantalla de inicio"** (o *Añadir al Dock* en macOS).
 
 ---
 
-## 💻 Desarrollo Local
+## 💬 Soporte y Sugerencias
 
-### Requisitos previos
-- **Node.js** >= 20.x
-- **Rust** >= 1.77.2 (para Tauri)
-- **Xcode** (para iOS, solo macOS)
-- **Android Studio** (para Android)
-
-### Instalación
-```bash
-# 1. Instalar dependencias con pnpm
-pnpm install
-
-# 2. Configurar hooks de seguridad en git (ejecutado automáticamente en postinstall)
-pnpm run prepare
-```
-
-### Ejecutar en la Web (Vite Dev Server)
-```bash
-pnpm run dev
-# Abre http://localhost:5173
-```
-
-### Ejecutar en Escritorio con Tauri (macOS/Windows/Linux)
-```bash
-pnpm run tauri dev
-```
-
-### Inicializar Plataformas Móviles (Capacitor)
-```bash
-# Inicializar iOS
-pnpm dlx @capacitor/cli add ios
-pnpm run cap:ios
-
-# Inicializar Android
-pnpm dlx @capacitor/cli add android
-pnpm run cap:android
-
-# Sincronizar cambios de frontend con las apps nativas
-pnpm run build
-pnpm run cap:sync
-```
-
----
-
-## 🏗️ Estructura del Repositorio
-
-```text
-laryko/
-├── .github/
-│   └── workflows/
-│       ├── release.yml          # CI/CD multi-runner: compila y publica los 5 binarios
-│       └── security-audit.yml   # Auditoría continua de seguridad y tipos en GitHub Actions
-├── .githooks/
-│   └── pre-commit               # Hook de pre-commit para tipos y prevención de fugas
-├── public/
-│   ├── .well-known/
-│   │   ├── apple-app-site-association # Universal Links iOS
-│   │   └── assetlinks.json            # App Links Android
-│   ├── favicon.svg
-│   └── robots.txt
-├── src-tauri/                   # Configuración y código Rust para Tauri v2
-│   ├── capabilities/
-│   │   └── default.json
-│   ├── src/
-│   │   ├── lib.rs
-│   │   └── main.rs
-│   ├── tauri.conf.json
-│   └── Cargo.toml
-├── src/                         # 100% de la UI y lógica compartida
-│   ├── components/
-│   │   ├── StatusBadge/         # Indicador Online / Offline
-│   │   └── UpdateModal/         # Modal de actualización y notas de release
-│   ├── db/
-│   │   └── laryko.db.ts         # Dexie.js (IndexedDB) para persistencia offline
-│   ├── hooks/
-│   │   ├── useAppUpdater.ts     # Verificador y disparador de releases GitHub
-│   │   ├── useCounter.ts        # Contador reactivo offline
-│   │   ├── useOnlineStatus.ts   # Estado de red Capacitor / Web
-│   │   ├── usePlatform.ts       # Detección de plataforma (Web, iOS, Android, Win, Mac, Linux)
-│   │   └── useQuickNote.ts      # Notas rápidas offline en Dexie
-│   ├── styles/
-│   │   ├── animations.css       # Keyframes y animaciones nativas
-│   │   ├── global.css           # Tokens de diseño y reset (dark/light theme)
-│   │   └── index.css
-│   ├── types/                   # Tipos TypeScript comunes
-│   ├── App.tsx                  # Pantalla Hola Mundo principal con footer dinámico
-│   └── main.tsx                 # Entrada React
-├── capacitor.config.ts          # Configuración Capacitor (com.laryko, laryko://)
-├── GEMINI.md                    # Regla estricta de auditoría de seguridad previa a ediciones
-├── package.json
-├── pnpm-lock.yaml
-├── tsconfig.json
-├── vercel.json                  # Rewrites SPA y headers de caché para PWA y .well-known
-└── vite.config.ts               # Vite + VitePWA + alias '@/' moderno (import.meta.dirname)
-```
-
----
-
-## 🛡️ Seguridad y Auditoría Continua
-
-El proyecto implementa la metodología de auditoría de seguridad de [Cloudflare Security Audit](https://github.com/cloudflare/security-audit-skill) tanto localmente como en CI/CD:
-
-1. **Pre-commit Hook Local (`.githooks/pre-commit`):**
-   - Intercepta cada commit antes de registrarse.
-   - Bloquea intentos de commitear archivos sensibles (`.env`, `.pem`, `.key`).
-   - Verifica la integridad estricta de tipos en TypeScript (`tsc --noEmit`).
-
-2. **GitHub Actions Workflow (`.github/workflows/security-audit.yml`):**
-   - **Supply Chain:** Ejecuta `pnpm audit` para bloquear paquetes vulnerables.
-   - **Type & Build Integrity:** Compila y verifica consistencia de tipos en cada PR o Push.
-   - **Límites de Confianza:** Verifica que no existan credenciales versionadas y valida la consistencia de los App IDs (`com.laryko`) en Capacitor y Tauri.
-
-Comandos de auditoría rápida:
-```bash
-# Auditar vulnerabilidades de dependencias
-pnpm run audit
-
-# Auditoría completa de dependencias y tipos
-pnpm run security:check
-```
-
----
-
-## 🚀 Publicación y Release Automático
-
-Para compilar y publicar los binarios de todas las plataformas simultáneamente:
-
-```bash
-git tag v0.1.0 -m "Release v0.1.0 - Versión inicial Hola Mundo"
-git push origin v0.1.0
-```
-
-GitHub Actions compilará en matrices independientes (Ubuntu, Windows, macOS) y generará la release en GitHub con los 5 archivos fijos:
-- `Laryko-iOS.ipa`
-- `Laryko-Android.apk`
-- `Laryko-Windows.exe`
-- `Laryko-macOS.dmg`
-- `Laryko-Linux.AppImage`
+¿Tienes alguna pregunta, sugerencia o encontraste un problema al usar la app?
+- Puedes reportar incidencias o solicitar nuevas funciones en [GitHub Issues](https://github.com/larykoCom/laryko/issues).
 
 ---
 
 ## 📄 Licencia
 
-MIT © [Laryko](https://laryko.com)
+Este proyecto está distribuido bajo la licencia [MIT](LICENSE).
+
+---
+
+> 👨‍💻 *¿Eres desarrollador y deseas compilar el proyecto o colaborar? Consulta la [Guía de Desarrollo (DEVELOPMENT.md)](DEVELOPMENT.md).*

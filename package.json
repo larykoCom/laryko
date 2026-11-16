@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/sync-version.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "cap:sync": "cap sync",
+    "cap:sync": "node scripts/sync-version.mjs && cap sync",
     "cap:ios": "cap open ios",
     "cap:android": "cap open android",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "sync:version": "node scripts/sync-version.mjs",
+    "sync:check": "node scripts/sync-version.mjs --check",
     "audit": "pnpm audit --audit-level=critical",
-    "security:check": "pnpm audit --audit-level=critical && tsc --noEmit",
+    "security:check": "pnpm audit --audit-level=critical && tsc --noEmit && node scripts/sync-version.mjs --check",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
@@ -38,10 +41,5 @@
     "typescript": "7.0.2",
     "vite": "8.3.8",
     "vite-plugin-pwa": "2.0.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "tar": ">=7.5.23"
-    }
   }
 }
