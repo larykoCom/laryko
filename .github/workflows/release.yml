@@ -269,7 +269,12 @@ jobs:
           path: dist/
 
       - name: Capacitor sync Android
-        run: pnpm dlx @capacitor/cli sync android
+        run: |
+          pnpm add @capacitor/android
+          if [ ! -d "android" ]; then
+            pnpm dlx @capacitor/cli add android
+          fi
+          pnpm dlx @capacitor/cli sync android
 
       - name: Build debug APK (sideload)
         run: |
@@ -317,7 +322,12 @@ jobs:
           path: dist/
 
       - name: Capacitor sync iOS
-        run: pnpm dlx @capacitor/cli sync ios
+        run: |
+          pnpm add @capacitor/ios
+          if [ ! -d "ios" ]; then
+            pnpm dlx @capacitor/cli add ios
+          fi
+          pnpm dlx @capacitor/cli sync ios
 
       - name: Build unsigned IPA (SideStore / AltStore)
         run: |
