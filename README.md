@@ -71,7 +71,11 @@ Al iniciar la app o presionar **"Buscar actualizaciones"**:
 
 ### Instalación
 ```bash
+# 1. Instalar dependencias con pnpm
 pnpm install
+
+# 2. Configurar hooks de seguridad en git (ejecutado automáticamente en postinstall)
+pnpm run prepare
 ```
 
 ### Ejecutar en la Web (Vite Dev Server)
@@ -108,7 +112,10 @@ pnpm run cap:sync
 laryko/
 ├── .github/
 │   └── workflows/
-│       └── release.yml          # CI/CD multi-runner: compila y publica los 5 binarios
+│       ├── release.yml          # CI/CD multi-runner: compila y publica los 5 binarios
+│       └── security-audit.yml   # Auditoría continua de seguridad y tipos en GitHub Actions
+├── .githooks/
+│   └── pre-commit               # Hook de pre-commit para tipos y prevención de fugas
 ├── public/
 │   ├── .well-known/
 │   │   ├── apple-app-site-association # Universal Links iOS
@@ -140,13 +147,15 @@ laryko/
 │   │   ├── global.css           # Tokens de diseño y reset (dark/light theme)
 │   │   └── index.css
 │   ├── types/                   # Tipos TypeScript comunes
-│   ├── App.tsx                  # Pantalla Hola Mundo principal
+│   ├── App.tsx                  # Pantalla Hola Mundo principal con footer dinámico
 │   └── main.tsx                 # Entrada React
 ├── capacitor.config.ts          # Configuración Capacitor (com.laryko, laryko://)
+├── GEMINI.md                    # Regla estricta de auditoría de seguridad previa a ediciones
 ├── package.json
+├── pnpm-lock.yaml
 ├── tsconfig.json
 ├── vercel.json                  # Rewrites SPA y headers de caché para PWA y .well-known
-└── vite.config.ts               # Vite + VitePWA + alias '@/'
+└── vite.config.ts               # Vite + VitePWA + alias '@/' moderno (import.meta.dirname)
 ```
 
 ---
