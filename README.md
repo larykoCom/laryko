@@ -71,33 +71,33 @@ Al iniciar la app o presionar **"Buscar actualizaciones"**:
 
 ### Instalación
 ```bash
-npm install
+pnpm install
 ```
 
 ### Ejecutar en la Web (Vite Dev Server)
 ```bash
-npm run dev
+pnpm run dev
 # Abre http://localhost:5173
 ```
 
 ### Ejecutar en Escritorio con Tauri (macOS/Windows/Linux)
 ```bash
-npm run tauri dev
+pnpm run tauri dev
 ```
 
 ### Inicializar Plataformas Móviles (Capacitor)
 ```bash
 # Inicializar iOS
-npx cap add ios
-npm run cap:ios
+pnpm dlx @capacitor/cli add ios
+pnpm run cap:ios
 
 # Inicializar Android
-npx cap add android
-npm run cap:android
+pnpm dlx @capacitor/cli add android
+pnpm run cap:android
 
 # Sincronizar cambios de frontend con las apps nativas
-npm run build
-npm run cap:sync
+pnpm run build
+pnpm run cap:sync
 ```
 
 ---

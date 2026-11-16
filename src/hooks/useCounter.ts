@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { db } from '@/db'
 import { useLiveQuery } from 'dexie-react-hooks'
 

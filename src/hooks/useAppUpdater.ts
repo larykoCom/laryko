@@ -16,7 +16,7 @@ function compareVersions(a: string, b: string): number {
   return 0
 }
 
-function getUpdateAction(platform: Platform, latestTag: string): UpdateAction {
+function getUpdateAction(platform: Platform, _latestTag: string): UpdateAction {
   switch (platform) {
     case 'web':
       return { type: 'reload' }
