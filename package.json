@@ -17,29 +17,29 @@
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
-    "@capacitor/app": "^6.0.0",
-    "@capacitor/core": "^6.0.0",
-    "@capacitor/network": "^6.0.0",
-    "@tauri-apps/api": "^2.0.0",
-    "@tauri-apps/plugin-updater": "^2.0.0",
-    "dexie": "^4.0.8",
-    "dexie-react-hooks": "^1.1.7",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/network": "8.0.1",
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-updater": "2.14.1",
+    "dexie": "4.4.7",
+    "dexie-react-hooks": "4.4.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.0.0",
-    "@tauri-apps/cli": "^2.0.0",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.1",
-    "typescript": "^5.5.3",
-    "vite": "^5.4.2",
-    "vite-plugin-pwa": "^0.20.0"
+    "@capacitor/cli": "8.6.2",
+    "@tauri-apps/cli": "2.12.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vite-plugin-pwa": "2.0.0"
   },
   "pnpm": {
     "overrides": {
-      "tar": ">=7.5.19"
+      "tar": ">=7.5.23"
     }
   }
 }
