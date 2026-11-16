@@ -11,7 +11,10 @@
     "cap:sync": "cap sync",
     "cap:ios": "cap open ios",
     "cap:android": "cap open android",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "audit": "pnpm audit --audit-level=critical",
+    "security:check": "pnpm audit --audit-level=critical && tsc --noEmit",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.0",
@@ -33,5 +36,10 @@
     "typescript": "^5.5.3",
     "vite": "^5.4.2",
     "vite-plugin-pwa": "^0.20.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "tar": ">=7.5.19"
+    }
   }
 }

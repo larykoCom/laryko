@@ -1,0 +1,98 @@
+name: 🛡️ Security Audit & Supply Chain CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Job 1: Supply Chain & Dependencies Audit (pnpm audit)
+  # ─────────────────────────────────────────────────────────────
+  dependency-audit:
+    name: 📦 Supply Chain Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Dependency Audit
+        run: pnpm audit --audit-level=critical
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 2: Code Integrity & Type Safety
+  # ─────────────────────────────────────────────────────────────
+  code-integrity:
+    name: 🔍 TypeScript & Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Types & Build
+        run: |
+          pnpm exec tsc --noEmit
+          pnpm run build
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 3: Secret Scanning & Trust Boundary Check
+  # ─────────────────────────────────────────────────────────────
+  boundary-and-secrets:
+    name: 🔒 Secrets & Trust Boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Unintended Secrets or Env files
+        run: |
+          echo "Verifying no .env files or private keys are tracked in git..."
+          FORBIDDEN_FILES=$(git ls-files | grep -E '^\.env$|\.env\.local$|\.pem$|\.key$' || true)
+          if [ -n "$FORBIDDEN_FILES" ]; then
+            echo "❌ ERROR: Forbidden sensitive files found in git:"
+            echo "$FORBIDDEN_FILES"
+            exit 1
+          fi
+          echo "✅ No sensitive environment or key files found in git."
+
+      - name: Validate Deep Link & Universal Link Identifiers
+        run: |
+          echo "Verifying app ID consistency (com.laryko)..."
+          grep -q "com.laryko" capacitor.config.ts || { echo "❌ com.laryko missing in capacitor.config.ts"; exit 1; }
+          grep -q "com.laryko" src-tauri/tauri.conf.json || { echo "❌ com.laryko missing in tauri.conf.json"; exit 1; }
+          echo "✅ All native identifiers are consistent."

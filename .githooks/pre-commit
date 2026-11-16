@@ -1,0 +1,31 @@
+#!/bin/sh
+# Laryko Security Pre-commit Hook
+# Basado en los principios de auditoría de seguridad de Cloudflare
+
+echo "🛡️  Ejecutando auditoría de seguridad previa al commit..."
+
+# 1. Comprobación de archivos sensibles (.env, .pem, .key)
+SENSITIVE_STAGED=$(git diff --cached --name-only | grep -E '^\.env$|\.env\..*\.local$|\.pem$|\.key$' || true)
+if [ -n "$SENSITIVE_STAGED" ]; then
+  echo "❌ ERROR DE SEGURIDAD: Intentas commitear archivos de credenciales o secretos:"
+  echo "$SENSITIVE_STAGED"
+  echo "Por favor desestagéalos con 'git reset HEAD <archivo>' antes de continuar."
+  exit 1
+fi
+
+# 2. Verificación de presencia de regla obligatoria GEMINI.md
+if [ ! -f "GEMINI.md" ]; then
+  echo "⚠️  ADVERTENCIA: Falta el archivo GEMINI.md de regla de seguridad obligatoria."
+fi
+
+# 3. Verificación de integridad de tipos TypeScript
+echo "🔍 Verificando integridad de tipos TypeScript..."
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm exec tsc --noEmit || {
+    echo "❌ ERROR: Fallaron las comprobaciones de tipos TypeScript. Corrige los errores antes de commitear."
+    exit 1
+  }
+fi
+
+echo "✅ Auditoría de pre-commit aprobada exitosamente."
+exit 0
