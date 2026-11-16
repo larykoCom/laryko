@@ -13,15 +13,28 @@ export interface Counter {
   updatedAt: Date
 }
 
+export interface Calculation {
+  id?: number
+  expression: string
+  result: string
+  timestamp: Date
+}
+
 export class LarykoDB extends Dexie {
   notes!: EntityTable<Note, 'id'>
   counter!: EntityTable<Counter, 'id'>
+  calculations!: EntityTable<Calculation, 'id'>
 
   constructor() {
     super('LarykoDB')
     this.version(1).stores({
       notes: '++id, createdAt',
       counter: 'id',
+    })
+    this.version(2).stores({
+      notes: '++id, createdAt',
+      counter: 'id',
+      calculations: '++id, timestamp',
     })
   }
 }

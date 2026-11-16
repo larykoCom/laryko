@@ -1,16 +1,36 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import {
+  Globe,
+  Smartphone,
+  Monitor,
+  Terminal,
+  HelpCircle,
+  Zap,
+  Calculator as CalculatorIcon,
+  ChevronRight,
+  Minus,
+  Plus,
+  AlertTriangle,
+} from 'lucide-react'
 import { usePlatform, useOnlineStatus, useCounter, useAppUpdater } from '@/hooks'
-import { StatusBadge, UpdateModal } from '@/components'
+import {
+  StatusBadge,
+  UpdateModal,
+  BottomBar,
+  UpdateCircleButton,
+  Calculator,
+  type ActiveTool,
+} from '@/components'
 import styles from './App.module.css'
 
-const PLATFORM_ICONS: Record<string, string> = {
-  web: '🌐',
-  ios: '📱',
-  android: '🤖',
-  windows: '🪟',
-  macos: '🍎',
-  linux: '🐧',
-  unknown: '❓',
+const PLATFORM_ICONS: Record<string, ReactNode> = {
+  web: <Globe size={13} strokeWidth={2.2} />,
+  ios: <Smartphone size={13} strokeWidth={2.2} />,
+  android: <Smartphone size={13} strokeWidth={2.2} />,
+  windows: <Monitor size={13} strokeWidth={2.2} />,
+  macos: <Monitor size={13} strokeWidth={2.2} />,
+  linux: <Terminal size={13} strokeWidth={2.2} />,
+  unknown: <HelpCircle size={13} strokeWidth={2.2} />,
 }
 
 export function App() {
@@ -21,6 +41,8 @@ export function App() {
     appInfo.platform,
     appInfo.version,
   )
+
+  const [activeTool, setActiveTool] = useState<ActiveTool>('home')
   const [showModal, setShowModal] = useState(false)
 
   const handleCheckUpdates = async () => {
@@ -30,80 +52,141 @@ export function App() {
 
   return (
     <div className={styles.app}>
-      <main className={styles.container}>
-        {/* ── Status Pill ── */}
+      {/* ── Barra Superior Fija: Estado y Botón Circular de Actualizaciones ── */}
+      <header className={styles.topBar}>
         <div className={styles.statusPill}>
-          <span>{PLATFORM_ICONS[appInfo.platform] ?? '🌐'} {appInfo.platform}</span>
+          <span className={styles.platformIcon}>
+            {PLATFORM_ICONS[appInfo.platform] ?? PLATFORM_ICONS.unknown}
+          </span>
+          <span className={styles.platformName}>{appInfo.platform}</span>
           <span className={styles.statusDivider}>•</span>
           <StatusBadge isOnline={isOnline} />
         </div>
 
-        {/* ── Brand Header ── */}
-        <header className={styles.header}>
-          <div className={styles.logo}>⚡</div>
-          <h1 className={styles.title}>Laryko</h1>
-          <p className={styles.subtitle}>Multiplataforma & Offline-First</p>
-        </header>
+        <UpdateCircleButton
+          checking={checking}
+          onClick={handleCheckUpdates}
+          hasUpdateAvailable={Boolean(updateInfo)}
+        />
+      </header>
 
-        {/* ── Minimal Interactive Card ── */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <span className={styles.cardLabel}>Persistencia Offline</span>
-            <span className={styles.storageTag}>Dexie.js</span>
-          </div>
+      {/* ── Contenedor de Vistas / Sub-apps ── */}
+      <main className={styles.container}>
+        {activeTool === 'home' ? (
+          <>
+            {/* ── Brand Header ── */}
+            <header className={styles.header}>
+              <div className={styles.logo}>
+                <Zap size={38} strokeWidth={2.5} />
+              </div>
+              <h1 className={styles.title}>Laryko</h1>
+              <p className={styles.subtitle}>Hub de Herramientas Offline-First</p>
+            </header>
 
-          <div className={styles.counterControl}>
-            <button
-              className={styles.counterBtn}
-              onClick={decrement}
-              aria-label="Decrementar"
-            >
-              −
-            </button>
-            <span className={styles.counterValue}>{value}</span>
-            <button
-              className={styles.counterBtn}
-              onClick={increment}
-              aria-label="Incrementar"
-            >
-              +
-            </button>
-          </div>
+            {/* ── Sección de Herramientas del Hub ── */}
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <span className={styles.sectionTitle}>Herramientas Disponibles</span>
+                <span className={styles.sectionBadge}>1 activa</span>
+              </div>
 
-          <button
-            className={styles.updateBtn}
-            onClick={handleCheckUpdates}
-            disabled={checking}
-          >
-            {checking ? (
-              <>
-                <span className={styles.spinner} />
-                <span>Verificando versión...</span>
-              </>
-            ) : (
-              <>🔄 Buscar actualizaciones</>
+              <div className={styles.toolsGrid}>
+                {/* Herramienta 1: Calculadora */}
+                <button
+                  type="button"
+                  className={styles.toolCard}
+                  onClick={() => setActiveTool('calculator')}
+                  aria-label="Abrir Calculadora"
+                >
+                  <div className={styles.toolContent}>
+                    <div className={styles.toolIcon}>
+                      <CalculatorIcon size={24} strokeWidth={2} />
+                    </div>
+                    <div className={styles.toolMeta}>
+                      <span className={styles.toolName}>Calculadora</span>
+                      <span className={styles.toolDesc}>
+                        Aritmética rápida, soporte offline e historial persistente.
+                      </span>
+                    </div>
+                  </div>
+                  <span className={styles.toolAction}>
+                    <ChevronRight size={20} strokeWidth={2.2} />
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            {/* ── Widget Interactivo Offline (Dexie.js) ── */}
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <span className={styles.sectionTitle}>Almacenamiento Local</span>
+                <span className={styles.storageTag}>Dexie.js</span>
+              </div>
+
+              <div className={styles.widgetCard}>
+                <div className={styles.widgetHeader}>
+                  <span className={styles.widgetLabel}>Contador Persistente</span>
+                </div>
+
+                <div className={styles.counterControl}>
+                  <button
+                    type="button"
+                    className={styles.counterBtn}
+                    onClick={decrement}
+                    aria-label="Decrementar"
+                  >
+                    <Minus size={16} strokeWidth={2.5} />
+                  </button>
+                  <span className={styles.counterValue}>{value}</span>
+                  <button
+                    type="button"
+                    className={styles.counterBtn}
+                    onClick={increment}
+                    aria-label="Incrementar"
+                  >
+                    <Plus size={16} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {error && (
+              <p className={styles.errorMsg}>
+                <AlertTriangle size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                {error}
+              </p>
             )}
-          </button>
 
-          {error && <p className={styles.errorMsg}>⚠️ {error}</p>}
-        </section>
-
-        {/* ── Minimal Footer ── */}
-        <footer className={styles.footer}>
-          <p>
-            Laryko v{appInfo.version} © {new Date().getFullYear()} ·{' '}
-            <a href="https://laryko.com" target="_blank" rel="noopener noreferrer">
-              laryko.com
-            </a>
-          </p>
-        </footer>
+            {/* ── Minimal Footer ── */}
+            <footer className={styles.footer}>
+              <p>
+                Laryko v{appInfo.version} © {new Date().getFullYear()} ·{' '}
+                <a href="https://laryko.com" target="_blank" rel="noopener noreferrer">
+                  laryko.com
+                </a>
+              </p>
+            </footer>
+          </>
+        ) : (
+          <Calculator platform={appInfo.platform} />
+        )}
       </main>
 
-      {/* ── Modal de actualización ── */}
+      {/* ── Barra Inferior Flotante (Liquid Glass) ── */}
+      <BottomBar
+        activeTool={activeTool}
+        onSelectTool={setActiveTool}
+        platform={appInfo.platform}
+      />
+
+      {/* ── Modal de Actualizaciones ── */}
       {showModal && updateInfo && (
         <UpdateModal
           updateInfo={updateInfo}
-          onUpdate={() => { executeUpdate(); setShowModal(false) }}
+          onUpdate={() => {
+            executeUpdate()
+            setShowModal(false)
+          }}
           onClose={() => setShowModal(false)}
         />
       )}

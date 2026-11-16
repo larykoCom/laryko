@@ -129,12 +129,17 @@ laryko/
 │   └── Cargo.toml
 ├── src/                         # 100% de la UI y lógica compartida
 │   ├── components/
+│   │   ├── BottomBar/           # Barra de navegación flotante con efecto Liquid Glass
+│   │   ├── Calculator/          # Sub-app Calculadora + Suite de Porcentajes
+│   │   ├── GlassEffectContainer/# Contenedor adaptativo con blur iOS/Multiplataforma
 │   │   ├── StatusBadge/         # Indicador Online / Offline
+│   │   ├── UpdateCircleButton/  # Botón circular de búsqueda de actualizaciones
 │   │   └── UpdateModal/         # Modal de actualización y notas de release
 │   ├── db/
-│   │   └── laryko.db.ts         # Dexie.js (IndexedDB) para persistencia offline
+│   │   └── laryko.db.ts         # Dexie.js (IndexedDB) con notas, contador y cálculos
 │   ├── hooks/
 │   │   ├── useAppUpdater.ts     # Verificador y disparador de releases GitHub
+│   │   ├── useCalculator.ts     # Lógica matemática, auto-cálculo e historial
 │   │   ├── useCounter.ts        # Contador reactivo offline
 │   │   ├── useOnlineStatus.ts   # Estado de red Capacitor / Web
 │   │   ├── usePlatform.ts       # Detección de plataforma (Web, iOS, Android, Win, Mac, Linux)
@@ -144,10 +149,12 @@ laryko/
 │   │   ├── global.css           # Tokens de diseño y reset (dark/light theme)
 │   │   └── index.css
 │   ├── types/                   # Tipos TypeScript comunes
-│   ├── App.tsx                  # Pantalla Hola Mundo principal con footer dinámico
+│   ├── App.tsx                  # Hub principal de herramientas y navegación
 │   └── main.tsx                 # Entrada React
+├── scripts/
+│   └── sync-version.mjs         # Sincronización automática de versión y copyright
 ├── capacitor.config.ts          # Configuración Capacitor (com.laryko, laryko://)
-├── GEMINI.md                    # Regla estricta de auditoría de seguridad previa a ediciones
+├── GEMINI.md                    # Reglas de seguridad y sincronización de metadatos
 ├── package.json
 ├── pnpm-lock.yaml
 ├── tsconfig.json

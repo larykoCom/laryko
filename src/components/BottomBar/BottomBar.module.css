@@ -1,0 +1,101 @@
+/* ============================================================
+   BottomBar – Barra inferior de navegación de herramientas
+   Flotante, centrada, con soporte de safe-area-inset
+   ============================================================ */
+
+.bottomBarWrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-4);
+  padding-bottom: max(env(safe-area-inset-bottom, var(--spacing-4)), var(--spacing-3));
+  z-index: 40;
+  pointer-events: none;
+}
+
+.bottomBar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 6px 10px;
+  max-width: 92vw;
+  width: auto;
+}
+
+.navItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 18px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  position: relative;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  min-width: 68px;
+}
+
+.navItem:hover {
+  color: var(--color-text-primary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .navItem:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.navItem:active {
+  transform: scale(0.94);
+}
+
+.navItemActive {
+  color: var(--color-accent-fg);
+  background: var(--color-accent) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.navIcon {
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast);
+}
+
+.navItemActive .navIcon {
+  transform: scale(1.1);
+}
+
+.navLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.navBadge {
+  position: absolute;
+  top: 4px;
+  right: 14px;
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: var(--radius-full);
+  line-height: 1;
+}

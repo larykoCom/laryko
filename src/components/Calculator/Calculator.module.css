@@ -1,0 +1,352 @@
+/* ============================================================
+   Calculator Component – Diseño fiel a Capturas 1 y 2
+   Tabs superiores: [Calculadora] [☰] [Porcentajes]
+   Colores: Naranja (#f97316), Pizarra (#5c6f84), Gris (#eaeff5)
+   ============================================================ */
+
+.calculatorWrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  animation: fadeIn var(--transition-base) both;
+}
+
+/* ── Barra de Tabs Superior: Calculadora | ☰ | Porcentajes ── */
+.tabBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  width: 100%;
+  padding: 4px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.tabBtn {
+  flex: 1;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  border: none;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  color: #475569;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tabBtn {
+    background: #1e293b;
+    color: #94a3b8;
+  }
+}
+
+.tabBtn:hover {
+  filter: brightness(0.96);
+}
+
+.tabBtnActive {
+  background: #f97316 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+}
+
+.historyToggleBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: #5c6f84;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.historyToggleBtn:hover {
+  background: #475569;
+  transform: translateY(-1px);
+}
+
+.historyToggleBtnActive {
+  background: #f97316 !important;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+}
+
+.badgeCount {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: #f97316;
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-bg);
+}
+
+/* ── Pantalla de la Calculadora ── */
+.screenCard {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  padding: var(--spacing-4) var(--spacing-5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-height: 120px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.toastSaved {
+  position: absolute;
+  top: var(--spacing-2);
+  left: var(--spacing-3);
+  background: #10b981;
+  color: #ffffff;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  animation: fadeIn 150ms ease;
+}
+
+.copyActionBtn {
+  position: absolute;
+  bottom: var(--spacing-2);
+  left: var(--spacing-3);
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color var(--transition-fast);
+}
+
+.copyActionBtn:hover {
+  color: #f97316;
+}
+
+.expressionText {
+  font-size: var(--font-size-base);
+  color: #64748b;
+  min-height: 1.5rem;
+  font-family: var(--font-mono);
+  word-break: break-all;
+  text-align: right;
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .expressionText {
+    color: #94a3b8;
+  }
+}
+
+.resultText {
+  font-size: clamp(2.2rem, 8vw, 3rem);
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #0f172a;
+  line-height: 1.1;
+  word-break: break-all;
+  text-align: right;
+  letter-spacing: -0.03em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .resultText {
+    color: #f8fafc;
+  }
+}
+
+/* ── Teclado (Keypad 4x5) ── */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-2);
+  width: 100%;
+}
+
+.keyBtn {
+  height: 60px;
+  border-radius: var(--radius-xl);
+  border: 1px solid transparent;
+  font-size: 1.35rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.keyBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.keyBtn:active {
+  transform: scale(0.93);
+  filter: brightness(0.94);
+}
+
+/* Botones Numéricos (0, 00, 1-9, .) -> Gris claro */
+.keyNumber {
+  background: #eaeff5;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .keyNumber {
+    background: #1e293b;
+    color: #f8fafc;
+    border-color: #334155;
+  }
+}
+
+/* Botones de Función (AC, ⌫, %) -> Pizarra oscuro */
+.keyFunction {
+  background: #5c6f84;
+  color: #ffffff;
+  font-size: 1.15rem;
+}
+
+.keyFunction:hover {
+  background: #4a5c6e;
+}
+
+/* Botones Operadores (÷, ×, −, +, =) -> Naranja vibrante */
+.keyOperator {
+  background: #f97316;
+  color: #ffffff;
+  font-size: 1.45rem;
+  box-shadow: 0 4px 10px rgba(249, 115, 22, 0.25);
+}
+
+.keyOperator:hover {
+  background: #ea580c;
+}
+
+/* ── Panel de Historial Desplegable ── */
+.historyPanel {
+  padding: var(--spacing-4);
+  border-radius: var(--radius-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  max-height: 240px;
+  overflow-y: auto;
+  animation: slideDown 200ms ease;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+}
+
+.historyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--spacing-2);
+}
+
+.clearHistBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clearHistBtn:hover {
+  text-decoration: underline;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historyItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.historyItem:hover {
+  background: var(--color-bg);
+  transform: translateX(2px);
+}
+
+.histExpr {
+  font-size: var(--font-size-xs);
+  color: #64748b;
+  font-family: var(--font-mono);
+}
+
+.histResult {
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: #f97316;
+  font-family: var(--font-mono);
+}
+
+.emptyHistory {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding: var(--spacing-4) 0;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

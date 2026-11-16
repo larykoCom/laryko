@@ -1,3 +1,4 @@
+import { Sparkles, CheckCircle2, X, ArrowRight } from 'lucide-react'
 import type { UpdateInfo } from '@/types'
 import styles from './UpdateModal.module.css'
 
@@ -13,10 +14,20 @@ export function UpdateModal({ updateInfo, onUpdate, onClose }: UpdateModalProps)
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2 className={styles.title}>
-            {updateInfo.hasUpdate ? '🚀 Actualización disponible' : '✅ Al día'}
+            {updateInfo.hasUpdate ? (
+              <>
+                <Sparkles size={20} color="var(--color-accent)" style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                Actualización disponible
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={20} color="var(--color-success)" style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                Al día
+              </>
+            )}
           </h2>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Cerrar">
-            ✕
+            <X size={18} />
           </button>
         </div>
 
@@ -24,7 +35,9 @@ export function UpdateModal({ updateInfo, onUpdate, onClose }: UpdateModalProps)
           <>
             <div className={styles.versionInfo}>
               <span className={styles.versionBadge}>v{updateInfo.currentVersion}</span>
-              <span className={styles.arrow}>→</span>
+              <span className={styles.arrow}>
+                <ArrowRight size={14} />
+              </span>
               <span className={`${styles.versionBadge} ${styles.newVersion}`}>
                 {updateInfo.latestVersion}
               </span>
@@ -37,10 +50,10 @@ export function UpdateModal({ updateInfo, onUpdate, onClose }: UpdateModalProps)
             )}
 
             <div className={styles.actions}>
-              <button className={styles.btnSecondary} onClick={onClose}>
+              <button type="button" className={styles.btnSecondary} onClick={onClose}>
                 Ahora no
               </button>
-              <button className={styles.btnPrimary} onClick={onUpdate}>
+              <button type="button" className={styles.btnPrimary} onClick={onUpdate}>
                 Actualizar ahora
               </button>
             </div>

@@ -1,0 +1,90 @@
+/* ============================================================
+   GlassEffectContainer – Liquid Glass Container
+   Soporte ultra-refinado para iOS y variantes multiplataforma
+   ============================================================ */
+
+.glassContainer {
+  position: relative;
+  overflow: hidden;
+  transition: background var(--transition-base),
+              border-color var(--transition-base),
+              box-shadow var(--transition-base);
+}
+
+/* ── iOS Liquid Glass ── */
+.iosGlass {
+  -webkit-backdrop-filter: blur(28px) saturate(210%);
+  backdrop-filter: blur(28px) saturate(210%);
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12),
+              inset 0 1px 1px rgba(255, 255, 255, 0.75),
+              inset 0 -1px 1px rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .iosGlass {
+    background: rgba(28, 28, 30, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.48),
+                inset 0 1px 1px rgba(255, 255, 255, 0.28),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ── Multiplataforma (Android, Web, Desktop) Liquid Glass ── */
+.multiGlass {
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(220, 220, 220, 0.7);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08),
+              inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+@media (prefers-color-scheme: dark) {
+  .multiGlass {
+    background: rgba(22, 22, 24, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.52),
+                inset 0 1px 1px rgba(255, 255, 255, 0.18);
+  }
+}
+
+/* ── Variante Dock (para barra inferior) ── */
+.dock {
+  border-radius: var(--radius-full);
+}
+
+/* ── Variante Card (para tarjetas o paneles) ── */
+.card {
+  border-radius: var(--radius-2xl);
+}
+
+/* ── Efecto de reflejo especular sutil en el borde superior ── */
+.glassContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .glassContainer::before {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 100%
+    );
+  }
+}
