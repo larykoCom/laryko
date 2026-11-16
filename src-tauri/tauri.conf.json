@@ -25,8 +25,7 @@
     ],
     "security": {
       "csp": "default-src 'self'; connect-src 'self' https://api.github.com https://github.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
-    },
-    "macOSPrivateApi": true
+    }
   },
   "plugins": {
     "updater": {
@@ -50,7 +49,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "identifier": "com.laryko",
     "publisher": "Laryko",
     "copyright": "Copyright © 2024 Laryko",
     "shortDescription": "Aplicación multiplataforma offline-first",

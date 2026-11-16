@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   RUST_VERSION: stable
 
 jobs:
@@ -93,7 +93,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Laryko ${{ github.ref_name }}'
           releaseBody: 'See changelog for details.'
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           args: --target x86_64-pc-windows-msvc
 
@@ -153,7 +153,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Laryko ${{ github.ref_name }}'
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           args: --target universal-apple-darwin
 
@@ -215,7 +215,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Laryko ${{ github.ref_name }}'
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
 
       - name: Rename Linux AppImage
@@ -253,11 +253,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -269,12 +266,7 @@ jobs:
           path: dist/
 
       - name: Capacitor sync Android
-        run: |
-          pnpm add @capacitor/android
-          if [ ! -d "android" ]; then
-            pnpm dlx @capacitor/cli add android
-          fi
-          pnpm dlx @capacitor/cli sync android
+        run: pnpm exec cap sync android
 
       - name: Build debug APK (sideload)
         run: |
@@ -322,12 +314,7 @@ jobs:
           path: dist/
 
       - name: Capacitor sync iOS
-        run: |
-          pnpm add @capacitor/ios
-          if [ ! -d "ios" ]; then
-            pnpm dlx @capacitor/cli add ios
-          fi
-          pnpm dlx @capacitor/cli sync ios
+        run: pnpm exec cap sync ios
 
       - name: Build unsigned IPA (SideStore / AltStore)
         run: |
@@ -335,9 +322,10 @@ jobs:
             -workspace ios/App/App.xcworkspace \
             -scheme App \
             -configuration Release \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -archivePath build/Laryko.xcarchive \
             archive \
+            CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM=""
