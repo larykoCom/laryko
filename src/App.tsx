@@ -153,7 +153,12 @@ export function App() {
 
         {/* ── Footer ── */}
         <footer className={styles.footer}>
-          <p>Laryko © 2024 · <a href="https://laryko.com" target="_blank" rel="noopener noreferrer">laryko.com</a></p>
+          <p>
+            Laryko v{appInfo.version} © {new Date().getFullYear()} ·{' '}
+            <a href="https://laryko.com" target="_blank" rel="noopener noreferrer">
+              laryko.com
+            </a>
+          </p>
         </footer>
       </main>
 
