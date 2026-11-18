@@ -1,6 +1,6 @@
 [package]
 name = "laryko"
-version = "0.1.0"
+version = "0.1.1"
 description = "Laryko - Aplicación multiplataforma offline-first"
 authors = ["Laryko"]
 edition = "2021"
