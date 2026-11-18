@@ -288,7 +288,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   build-ios:
     name: 📱 Build iOS IPA (unsigned)
-    needs: build-web
+    needs: [build-web, build-tauri-macos]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
