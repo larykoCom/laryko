@@ -5,29 +5,7 @@ Todas las modificaciones notables en este proyecto serán documentadas en este a
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
-## [1.1.3] - 2026-11-19
-
-### Añadido (Added)
-- **Arrastre Táctil Continuo y Seguimiento 1:1 de la Burbuja Liquid Glass:**
-  - La burbuja de cristal líquido ahora **sigue físicamente el dedo en tiempo real** al arrastrar sobre el tab bar (`pointermove`/`pointercapture`).
-  - Deformación elástica fluida (*gelatinous stretch / squish*) durante el desplazamiento interactivo.
-  - Al cruzar el umbral entre pestañas se activa la pulsación del Taptic Engine (`selection`).
-  - Al soltar el dedo, la cápsula se acopla magnéticamente a la pestaña más cercana mediante física de resorte.
-- **Refracción y Luminosidad Liquid Glass sobre Fondos Negros:**
-  - Capas de refracción radial y bisel especular superior que otorgan volumen y cuerpo de cristal físico visible en modo oscuro de iOS.
-
-## [1.1.2] - 2026-11-18
-
-### Corregido (Fixed)
-- **Animación y Material Liquid Glass Nativo en Tabs:**
-  - Sustituida la cápsula estática por un **indicador deslizante fluido (`.activeIndicator`)** con curva de transición elástica Apple (`cubic-bezier(0.25, 1, 0.35, 1)`).
-  - Material translúcido ultra-refinado libre de bordes blancos artificiales o fondos oscuros pesados, alineado con el diseño nativo de iOS 18 y VisionOS.
-- **Coloración y Respuesta Táctil en Teclado de Calculadora:**
-  - Control determinístico del botón activo mediante estado Reactivo (`activeKey`) y eventos `pointerdown`/`pointerup`/`pointerleave`.
-  - Eliminado el bug de WebKit en iOS donde tocar una tecla (como el "7") coloreaba la tecla inferior ("4") por desfase de hit-testing de `:active`.
-  - Supresión de estados `:focus` o congelamientos de color en azul al levantar el dedo.
-
-## [1.1.1] - 2026-11-18
+## [1.1.1] - 2026-11-19
 
 ### Añadido (Added)
 - **Puente Nativo Swift para iOS (`NativeIOSBridge`):**
@@ -35,18 +13,17 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Gestión nativa de transparencia del lienzo en `WKWebView` para mezcla pura de efectos de fondo translúcidos.
   - Copia al portapapeles con confirmación háptica (`copyToClipboardWithHaptic`).
   - Detección de capacidades del sistema para Liquid Glass (iOS 18+ y VisionOS).
-- **Perfeccionamiento Visual y Óptico Liquid Glass (Estilo Apple Vision / iOS):**
-  - Lente de cristal líquido convexo en tabs activos con refracción multicapa.
-  - Borde con aberración cromática e iridiscencia prismática (`-webkit-mask-composite: xor`).
-  - Reflejo especular convexo superior simulando curvatura física tridimensional.
-- **Feedback Táctil y de Color Inmediato:**
-  - Iluminación en alto contraste al pulsar teclas (azul eléctrico en números, destello blanco en operadores y cian en funciones).
-  - Activación sin latencia táctil en iOS WebKit mediante detector de toques pasivo.
+- **Indicador Deslizante Interactivo Liquid Glass (Apple Vision / iOS 18):**
+  - **Seguimiento Táctil Continuo 1:1:** La burbuja de cristal líquido sigue físicamente el dedo en tiempo real durante el arrastre sobre el dock (`pointermove` y `setPointerCapture`).
+  - Deformación elástica fluida (*gelatinous stretch / squish*) y respuesta de resorte (*spring physics*) al soltar.
+  - Pulsación háptica al cruzar el umbral entre pestañas.
+  - Refracción óptica y bisel especular optimizados para fondos oscuros.
 
 ### Corregido (Fixed)
-- **Desfase Táctil en Teclado de Calculadora:**
-  - Corregido el desplazamiento vertical involuntario que provocaba que pulsar "4" interceptara la fila "1" en iOS.
-  - Aislamiento de toques con `touch-action: manipulation` y eliminación de retrasos de 300ms con `maximum-scale=1.0, user-scalable=no`.
+- **Coloración y Respuesta Táctil en Teclado de Calculadora:**
+  - Control determinístico del botón activo mediante estado Reactivo (`activeKey`) y eventos `pointerdown`/`pointerup`/`pointerleave`.
+  - Eliminado el bug de WebKit en iOS donde tocar una tecla (como el "7") coloreaba la tecla inferior ("4") por desfase de hit-testing de `:active`.
+  - Supresión total de estados `:focus` o teclas congeladas en azul.
 - **Scroll / Rebote Elástico Innecesario en iOS:**
   - Eliminado el rebote de pantalla (*rubber-banding*) mediante contención de viewport (`overscroll-behavior: none`, `height: 100dvh`).
 
