@@ -5,6 +5,17 @@ Todas las modificaciones notables en este proyecto serán documentadas en este a
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.3] - 2026-11-19
+
+### Añadido (Added)
+- **Arrastre Táctil Continuo y Seguimiento 1:1 de la Burbuja Liquid Glass:**
+  - La burbuja de cristal líquido ahora **sigue físicamente el dedo en tiempo real** al arrastrar sobre el tab bar (`pointermove`/`pointercapture`).
+  - Deformación elástica fluida (*gelatinous stretch / squish*) durante el desplazamiento interactivo.
+  - Al cruzar el umbral entre pestañas se activa la pulsación del Taptic Engine (`selection`).
+  - Al soltar el dedo, la cápsula se acopla magnéticamente a la pestaña más cercana mediante física de resorte.
+- **Refracción y Luminosidad Liquid Glass sobre Fondos Negros:**
+  - Capas de refracción radial y bisel especular superior que otorgan volumen y cuerpo de cristal físico visible en modo oscuro de iOS.
+
 ## [1.1.2] - 2026-11-18
 
 ### Corregido (Fixed)
