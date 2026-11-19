@@ -50,7 +50,7 @@ async function getVersion(platform: Platform): Promise<string> {
 export function usePlatform(): AppInfo {
   const [info, setInfo] = useState<AppInfo>({
     platform: 'unknown',
-    version: '0.1.1',
+    version: '1.1.0',
     origin: typeof window !== 'undefined' ? window.location.origin : '',
     isNative: false,
   })

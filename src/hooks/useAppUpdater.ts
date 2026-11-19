@@ -7,11 +7,13 @@ const IS_APP_STORE = import.meta.env.VITE_IS_APP_STORE === 'true'
 const BASE_DOWNLOAD = `https://github.com/${GITHUB_REPO}/releases/latest/download`
 
 function compareVersions(a: string, b: string): number {
-  const pa = a.replace(/^v/, '').split('.').map(Number)
-  const pb = b.replace(/^v/, '').split('.').map(Number)
+  const pa = a.replace(/^v/i, '').trim().split('.').map(n => parseInt(n, 10) || 0)
+  const pb = b.replace(/^v/i, '').trim().split('.').map(n => parseInt(n, 10) || 0)
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
-    if (diff !== 0) return diff
+    const na = pa[i] ?? 0
+    const nb = pb[i] ?? 0
+    if (na > nb) return 1
+    if (na < nb) return -1
   }
   return 0
 }
