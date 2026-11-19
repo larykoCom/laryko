@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import {
   Globe,
   Smartphone,
@@ -21,6 +21,7 @@ import {
   Calculator,
   type ActiveTool,
 } from '@/components'
+import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import styles from './App.module.css'
 
 const PLATFORM_ICONS: Record<string, ReactNode> = {
@@ -50,7 +51,14 @@ export function App() {
   const [activeTool, setActiveTool] = useState<ActiveTool>('home')
   const [showModal, setShowModal] = useState(false)
 
+  useEffect(() => {
+    if (appInfo.platform === 'ios') {
+      NativeIOSBridge.setWebViewTransparent({ transparent: true })
+    }
+  }, [appInfo.platform])
+
   const handleCheckUpdates = async () => {
+    triggerNativeHaptic('selection')
     await checkForUpdates()
     setShowModal(true)
   }

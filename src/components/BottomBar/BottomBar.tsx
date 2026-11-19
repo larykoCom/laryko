@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Home, Calculator as CalculatorIcon } from 'lucide-react'
 import { GlassEffectContainer } from '@/components/GlassEffectContainer'
+import { triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import type { Platform } from '@/types'
 import styles from './BottomBar.module.css'
 
@@ -25,6 +26,11 @@ const NAV_ITEMS: NavItemConfig[] = [
 ]
 
 export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: BottomBarProps) {
+  const handleSelect = (toolId: ActiveTool) => {
+    triggerNativeHaptic('selection')
+    onSelectTool(toolId)
+  }
+
   return (
     <div className={styles.bottomBarWrapper}>
       <GlassEffectContainer
@@ -40,7 +46,7 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
             <button
               key={item.id}
               className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
-              onClick={() => onSelectTool(item.id)}
+              onClick={() => handleSelect(item.id)}
               aria-current={isActive ? 'page' : undefined}
               aria-label={item.label}
               type="button"

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useCalculator } from '@/hooks/useCalculator'
 import { PercentageCalculator } from './PercentageCalculator'
+import { triggerNativeHaptic, NativeIOSBridge } from '@/utils/nativeIOSBridge'
 import type { Platform } from '@/types'
 import styles from './Calculator.module.css'
 
@@ -38,12 +39,53 @@ export function Calculator({ }: CalculatorProps) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(formattedDisplay)
+      await NativeIOSBridge.copyToClipboardWithHaptic({ text: formattedDisplay })
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      // fallback
+      try {
+        await navigator.clipboard.writeText(formattedDisplay)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      } catch {
+        // fallback
+      }
     }
+  }
+
+  const handleDigit = (digit: string) => {
+    triggerNativeHaptic('light')
+    inputDigit(digit)
+  }
+
+  const handleDot = () => {
+    triggerNativeHaptic('light')
+    inputDot()
+  }
+
+  const handleOperation = (op: string) => {
+    triggerNativeHaptic('medium')
+    performOperation(op)
+  }
+
+  const handleClear = () => {
+    triggerNativeHaptic('warning')
+    clear()
+  }
+
+  const handleBackspace = () => {
+    triggerNativeHaptic('light')
+    backspace()
+  }
+
+  const handlePercentage = () => {
+    triggerNativeHaptic('medium')
+    percentage()
+  }
+
+  const handleSave = () => {
+    triggerNativeHaptic('heavy')
+    saveToHistory()
   }
 
   return (
@@ -54,6 +96,7 @@ export function Calculator({ }: CalculatorProps) {
           type="button"
           className={`${styles.tabBtn} ${tab === 'calc' ? styles.tabBtnActive : ''}`}
           onClick={() => {
+            triggerNativeHaptic('selection')
             setTab('calc')
             setShowHistory(false)
           }}
@@ -64,7 +107,10 @@ export function Calculator({ }: CalculatorProps) {
         <button
           type="button"
           className={`${styles.historyToggleBtn} ${showHistory ? styles.historyToggleBtnActive : ''}`}
-          onClick={() => setShowHistory(!showHistory)}
+          onClick={() => {
+            triggerNativeHaptic('selection')
+            setShowHistory(!showHistory)
+          }}
           aria-label="Abrir historial de cálculos"
           title="Historial de cálculos"
         >
@@ -76,6 +122,7 @@ export function Calculator({ }: CalculatorProps) {
           type="button"
           className={`${styles.tabBtn} ${tab === 'percentages' ? styles.tabBtnActive : ''}`}
           onClick={() => {
+            triggerNativeHaptic('selection')
             setTab('percentages')
             setShowHistory(false)
           }}
@@ -93,7 +140,10 @@ export function Calculator({ }: CalculatorProps) {
               <button
                 type="button"
                 className={styles.clearHistBtn}
-                onClick={clearHistory}
+                onClick={() => {
+                  triggerNativeHaptic('warning')
+                  clearHistory()
+                }}
               >
                 <Trash2 size={13} />
                 Limpiar
@@ -109,6 +159,7 @@ export function Calculator({ }: CalculatorProps) {
                   key={item.id}
                   className={styles.historyItem}
                   onClick={() => {
+                    triggerNativeHaptic('selection')
                     restoreFromHistory(item)
                     setShowHistory(false)
                     setTab('calc')
@@ -150,7 +201,7 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyFunction}`}
-              onClick={clear}
+              onClick={handleClear}
               aria-label="Limpiar todo"
             >
               AC
@@ -158,7 +209,7 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyFunction}`}
-              onClick={backspace}
+              onClick={handleBackspace}
               aria-label="Borrar dígito"
             >
               <Delete size={22} strokeWidth={2.2} />
@@ -166,7 +217,7 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyFunction}`}
-              onClick={percentage}
+              onClick={handlePercentage}
               aria-label="Porcentaje"
             >
               %
@@ -174,7 +225,7 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => performOperation('÷')}
+              onClick={() => handleOperation('÷')}
               aria-label="Dividir"
             >
               ÷
@@ -184,28 +235,28 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('7')}
+              onClick={() => handleDigit('7')}
             >
               7
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('8')}
+              onClick={() => handleDigit('8')}
             >
               8
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('9')}
+              onClick={() => handleDigit('9')}
             >
               9
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => performOperation('×')}
+              onClick={() => handleOperation('×')}
               aria-label="Multiplicar"
             >
               ×
@@ -215,28 +266,28 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('4')}
+              onClick={() => handleDigit('4')}
             >
               4
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('5')}
+              onClick={() => handleDigit('5')}
             >
               5
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('6')}
+              onClick={() => handleDigit('6')}
             >
               6
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => performOperation('−')}
+              onClick={() => handleOperation('−')}
               aria-label="Restar"
             >
               −
@@ -246,28 +297,28 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('1')}
+              onClick={() => handleDigit('1')}
             >
               1
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('2')}
+              onClick={() => handleDigit('2')}
             >
               2
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('3')}
+              onClick={() => handleDigit('3')}
             >
               3
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => performOperation('+')}
+              onClick={() => handleOperation('+')}
               aria-label="Sumar"
             >
               +
@@ -277,14 +328,14 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('0')}
+              onClick={() => handleDigit('0')}
             >
               0
             </button>
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => inputDigit('00')}
+              onClick={() => handleDigit('00')}
               aria-label="Doble cero"
             >
               00
@@ -292,7 +343,7 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={inputDot}
+              onClick={handleDot}
               aria-label="Punto decimal"
             >
               .
@@ -300,7 +351,7 @@ export function Calculator({ }: CalculatorProps) {
             <button
               type="button"
               className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={saveToHistory}
+              onClick={handleSave}
               aria-label="Guardar en historial"
               title="Guardar en historial"
             >
