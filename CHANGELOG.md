@@ -8,24 +8,27 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.1.1] - 2026-11-19
 
 ### Añadido (Added)
+- **Liquid Glass Nativo Oficial de Apple en iOS (`UITabBar` UIKit):**
+  - Barra de navegación inferior implementada con `UITabBar` nativo de UIKit y material translúcido `.systemUltraThinMaterial` de Apple.
+  - Símbolos nativos de Apple SF Symbols (`house.fill` y `plus.forwardslash.minus`).
+  - Sincronización bidireccional mediante `NativeIOSBridge` y eventos personalizados con la interfaz web.
 - **Puente Nativo Swift para iOS (`NativeIOSBridge`):**
-  - Conexión nativa con el motor háptico de Apple (Taptic Engine) para feedback físico instantáneo en dígitos, operadores, cálculo final y cambio de pestañas.
-  - Gestión nativa de transparencia del lienzo en `WKWebView` para mezcla pura de efectos de fondo translúcidos.
+  - Conexión nativa con el motor háptico de Apple (Taptic Engine) para feedback físico instantáneo (`UIImpactFeedbackGenerator`, `UISelectionFeedbackGenerator`, `UINotificationFeedbackGenerator`).
+  - Gestión nativa de visibilidad y pestaña activa del `UITabBar`.
   - Copia al portapapeles con confirmación háptica (`copyToClipboardWithHaptic`).
-  - Detección de capacidades del sistema para Liquid Glass (iOS 18+ y VisionOS).
-- **Indicador Deslizante Interactivo Liquid Glass (Apple Vision / iOS 18):**
-  - **Seguimiento Táctil Continuo 1:1:** La burbuja de cristal líquido sigue físicamente el dedo en tiempo real durante el arrastre sobre el dock (`pointermove` y `setPointerCapture`).
-  - Deformación elástica fluida (*gelatinous stretch / squish*) y respuesta de resorte (*spring physics*) al soltar.
-  - Pulsación háptica al cruzar el umbral entre pestañas.
-  - Refracción óptica y bisel especular optimizados para fondos oscuros.
+- **Fuente Oficial para SideStore / AltStore (`apps.json`):**
+  - Publicación del manifiesto oficial `public/apps.json` vinculado al Bundle ID canónico `com.laryko` para instalación directa sin conflictos de origen.
+- **Actualizador de Escritorio In-App con Progreso en Tiempo Real:**
+  - Descarga nativa y barra de progreso que refleja megabytes descargados respecto al total y porcentaje en macOS, Windows y Linux.
 
 ### Corregido (Fixed)
+- **Barra Oscura Inferior y Desfase de Pantalla en iOS:**
+  - Configurado `UIWindow` y controlador raíz con `.systemBackground` para eliminar el fondo negro por defecto de UIKit.
+  - Establecido `contentInset: 'never'` y contención de layout para evitar scroll fantasma y solapamiento del safe area inferior.
 - **Coloración y Respuesta Táctil en Teclado de Calculadora:**
   - Control determinístico del botón activo mediante estado Reactivo (`activeKey`) y eventos `pointerdown`/`pointerup`/`pointerleave`.
   - Eliminado el bug de WebKit en iOS donde tocar una tecla (como el "7") coloreaba la tecla inferior ("4") por desfase de hit-testing de `:active`.
   - Supresión total de estados `:focus` o teclas congeladas en azul.
-- **Scroll / Rebote Elástico Innecesario en iOS:**
-  - Eliminado el rebote de pantalla (*rubber-banding*) mediante contención de viewport (`overscroll-behavior: none`, `height: 100dvh`).
 
 ## [1.1.0] - 2026-11-18
 

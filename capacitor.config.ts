@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     scheme: 'laryko',
-    contentInset: 'automatic',
+    contentInset: 'never',
   },
   android: {
     allowMixedContent: false,

@@ -1,0 +1,19 @@
+{
+  "name": "Laryko",
+  "identifier": "com.laryko.source",
+  "apps": [
+    {
+      "name": "Laryko",
+      "bundleIdentifier": "com.laryko",
+      "developerName": "Laryko",
+      "version": "1.1.1",
+      "versionDate": "2026-11-19",
+      "versionDescription": "Laryko v1.1.1 con Liquid Glass nativo oficial de Apple (UITabBar con .systemUltraThinMaterial), motor háptico Taptic Engine y resolución del espacio inferior.",
+      "downloadURL": "https://github.com/larykoCom/laryko/releases/latest/download/Laryko-iOS.ipa",
+      "localizedDescription": "Laryko: Aplicación Multiplataforma y Offline-First con Liquid Glass oficial de Apple y suite de utilidades.",
+      "iconURL": "https://laryko.com/favicon.svg",
+      "tintColor": "3b82f6",
+      "size": 5242880
+    }
+  ]
+}

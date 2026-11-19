@@ -24,6 +24,8 @@ export interface NativeIOSBridgePlugin {
   setWebViewTransparent(options: { transparent: boolean }): Promise<{ success: boolean }>
   copyToClipboardWithHaptic(options: { text: string }): Promise<{ success: boolean }>
   setBadge(options: { count: number }): Promise<{ success: boolean }>
+  setActiveTab(options: { tab: string }): Promise<{ success: boolean }>
+  setTabBarVisible(options: { visible: boolean }): Promise<{ success: boolean }>
 }
 
 export const NativeIOSBridge = registerPlugin<NativeIOSBridgePlugin>('NativeIOSBridge', {
@@ -36,7 +38,7 @@ export const NativeIOSBridge = registerPlugin<NativeIOSBridgePlugin>('NativeIOSB
         systemVersion: 'web',
         model: 'browser',
         isiOS: false,
-        bridgeVersion: '1.1.0',
+        bridgeVersion: '1.1.1',
       }
     },
     async setWebViewTransparent() {
@@ -47,6 +49,12 @@ export const NativeIOSBridge = registerPlugin<NativeIOSBridgePlugin>('NativeIOSB
       return { success: true }
     },
     async setBadge() {
+      return { success: false }
+    },
+    async setActiveTab() {
+      return { success: false }
+    },
+    async setTabBarVisible() {
       return { success: false }
     },
   },

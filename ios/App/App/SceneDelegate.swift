@@ -14,7 +14,9 @@ public class NativeIOSBridge: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getLiquidGlassCapabilities", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setWebViewTransparent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "copyToClipboardWithHaptic", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setActiveTab", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setTabBarVisible", returnType: CAPPluginReturnPromise)
     ]
 
     private let lightImpact = UIImpactFeedbackGenerator(style: .light)
@@ -80,7 +82,7 @@ public class NativeIOSBridge: CAPPlugin, CAPBridgedPlugin {
             "systemVersion": systemVersion,
             "model": UIDevice.current.model,
             "isiOS": true,
-            "bridgeVersion": "1.1.0"
+            "bridgeVersion": "1.1.1"
         ])
     }
 
@@ -126,15 +128,117 @@ public class NativeIOSBridge: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["success": true])
         }
     }
+
+    @objc func setActiveTab(_ call: CAPPluginCall) {
+        guard let tab = call.getString("tab") else {
+            call.reject("Tab requerido")
+            return
+        }
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first(where: { $0.isKeyWindow }),
+               let mainVC = window.rootViewController as? MainViewController {
+                mainVC.updateNativeTab(tab: tab)
+            }
+            call.resolve(["success": true])
+        }
+    }
+
+    @objc func setTabBarVisible(_ call: CAPPluginCall) {
+        let visible = call.getBool("visible") ?? true
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first(where: { $0.isKeyWindow }),
+               let mainVC = window.rootViewController as? MainViewController {
+                mainVC.setNativeTabBarVisible(visible)
+            }
+            call.resolve(["success": true])
+        }
+    }
 }
 
 // ============================================================
-// MainViewController – Controlador raíz Capacitor con registro de plugin
+// MainViewController – Controlador raíz con Liquid Glass UITabBar Nativo
 // ============================================================
-class MainViewController: CAPBridgeViewController {
+class MainViewController: CAPBridgeViewController, UITabBarDelegate {
+    private let nativeTabBar = UITabBar()
+    private var homeTabItem: UITabBarItem!
+    private var calcTabItem: UITabBarItem!
+
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+        setupNativeTabBar()
+    }
+
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(NativeIOSBridge())
+        webView?.backgroundColor = .systemBackground
+        webView?.scrollView.backgroundColor = .systemBackground
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never
+    }
+
+    private func setupNativeTabBar() {
+        nativeTabBar.delegate = self
+        nativeTabBar.translatesAutoresizingMaskIntoConstraints = false
+
+        // Configuración de apariencia nativa Liquid Glass (.systemUltraThinMaterial)
+        let appearance = UITabBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+        
+        nativeTabBar.standardAppearance = appearance
+        if #available(iOS 15.0, *) {
+            nativeTabBar.scrollEdgeAppearance = appearance
+        }
+
+        // Ítems con SF Symbols nativos de Apple
+        homeTabItem = UITabBarItem(
+            title: "Inicio",
+            image: UIImage(systemName: "house"),
+            selectedImage: UIImage(systemName: "house.fill")
+        )
+        homeTabItem.tag = 0
+
+        calcTabItem = UITabBarItem(
+            title: "Calculadora",
+            image: UIImage(systemName: "plus.forwardslash.minus"),
+            selectedImage: UIImage(systemName: "plus.forwardslash.minus.circle.fill")
+        )
+        calcTabItem.tag = 1
+
+        nativeTabBar.items = [homeTabItem, calcTabItem]
+        nativeTabBar.selectedItem = homeTabItem
+
+        view.addSubview(nativeTabBar)
+
+        NSLayoutConstraint.activate([
+            nativeTabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            nativeTabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            nativeTabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+
+    func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+        let tab = item.tag == 0 ? "home" : "calculator"
+        let script = "window.dispatchEvent(new CustomEvent('larykoNativeTabSelected', { detail: { tab: '\(tab)' } }))"
+        webView?.evaluateJavaScript(script, completionHandler: nil)
+    }
+
+    func updateNativeTab(tab: String) {
+        if tab == "home" {
+            nativeTabBar.selectedItem = homeTabItem
+        } else if tab == "calculator" {
+            nativeTabBar.selectedItem = calcTabItem
+        }
+    }
+
+    func setNativeTabBarVisible(_ visible: Bool) {
+        UIView.animate(withDuration: 0.25) {
+            self.nativeTabBar.alpha = visible ? 1.0 : 0.0
+            self.nativeTabBar.isHidden = !visible
+        }
     }
 }
 
@@ -145,6 +249,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
+        window?.backgroundColor = .systemBackground
         window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
 

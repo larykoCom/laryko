@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
 import { Home, Calculator as CalculatorIcon } from 'lucide-react'
 import { GlassEffectContainer } from '@/components/GlassEffectContainer'
-import { triggerNativeHaptic } from '@/utils/nativeIOSBridge'
+import { triggerNativeHaptic, NativeIOSBridge } from '@/utils/nativeIOSBridge'
 import type { Platform } from '@/types'
 import styles from './BottomBar.module.css'
 
@@ -26,6 +26,27 @@ const NAV_ITEMS: NavItemConfig[] = [
 ]
 
 export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: BottomBarProps) {
+  // Sincronización bidireccional con UITabBar nativo de Apple en iOS
+  useEffect(() => {
+    if (platform !== 'ios') return
+
+    // Sincronizar selección hacia Swift al cambiar la pestaña
+    NativeIOSBridge.setActiveTab({ tab: activeTool }).catch(() => {})
+
+    // Escuchar cambios de pestaña originados en el UITabBarDelegate nativo
+    const handleNativeTab = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tab: ActiveTool }>
+      if (customEvent.detail?.tab && customEvent.detail.tab !== activeTool) {
+        onSelectTool(customEvent.detail.tab)
+      }
+    }
+
+    window.addEventListener('larykoNativeTabSelected', handleNativeTab)
+    return () => {
+      window.removeEventListener('larykoNativeTabSelected', handleNativeTab)
+    }
+  }, [platform, activeTool, onSelectTool])
+
   const activeIndex = NAV_ITEMS.findIndex((item) => item.id === activeTool)
   const dockRef = useRef<HTMLElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -36,6 +57,11 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
   useEffect(() => {
     setLastHapticIndex(activeIndex)
   }, [activeIndex])
+
+  // Si estamos en iOS, la barra inferior la provee el UITabBar nativo de UIKit
+  if (platform === 'ios') {
+    return null
+  }
 
   const handleSelect = (toolId: ActiveTool) => {
     triggerNativeHaptic('selection')
