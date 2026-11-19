@@ -26,6 +26,8 @@ const NAV_ITEMS: NavItemConfig[] = [
 ]
 
 export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: BottomBarProps) {
+  const activeIndex = NAV_ITEMS.findIndex((item) => item.id === activeTool)
+
   const handleSelect = (toolId: ActiveTool) => {
     triggerNativeHaptic('selection')
     onSelectTool(toolId)
@@ -40,6 +42,15 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
         className={styles.bottomBar}
         aria-label="Barra de herramientas principal"
       >
+        {/* Indicador deslizante de cristal líquido estilo iOS nativo */}
+        <div
+          className={styles.activeIndicator}
+          style={{
+            transform: `translateX(calc(${activeIndex * 100}% + ${activeIndex * 6}px))`,
+          }}
+          aria-hidden="true"
+        />
+
         {NAV_ITEMS.map((item) => {
           const isActive = activeTool === item.id
           return (

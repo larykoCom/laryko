@@ -218,29 +218,34 @@
   overflow: hidden;
 }
 
-.keyBtn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.04);
+.keyBtn:focus,
+.keyBtn:focus-visible {
+  outline: none;
 }
 
-.keyBtn:active {
-  transform: scale(0.92);
+/* ── Clases activas controladas determinísticamente por React (cero desfase táctil) ── */
+.keyActiveNumber {
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+  border-color: #60a5fa !important;
+  transform: scale(0.92) !important;
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.75) !important;
 }
 
-/* Efecto de brillo táctil inmediato */
-.keyBtn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.4) 0%, transparent 75%);
-  opacity: 0;
-  transition: opacity 70ms ease;
-  pointer-events: none;
+.keyActiveFunction {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #38bdf8 !important;
+  transform: scale(0.92) !important;
+  box-shadow: 0 0 16px rgba(2, 132, 199, 0.6) !important;
 }
 
-.keyBtn:active::after {
-  opacity: 1;
+.keyActiveOperator {
+  background: #ffffff !important;
+  color: #ea580c !important;
+  border-color: #ffffff !important;
+  transform: scale(0.92) !important;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.85) !important;
 }
 
 /* Botones Numéricos (0, 00, 1-9, .) -> Gris claro / Pizarra en Dark */
@@ -250,25 +255,11 @@
   border-color: #e2e8f0;
 }
 
-.keyNumber:active {
-  background: #2563eb !important;
-  color: #ffffff !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 16px rgba(37, 99, 235, 0.6) !important;
-}
-
 @media (prefers-color-scheme: dark) {
   .keyNumber {
     background: #1e293b;
     color: #f8fafc;
     border-color: #334155;
-  }
-
-  .keyNumber:active {
-    background: #3b82f6 !important;
-    color: #ffffff !important;
-    border-color: #60a5fa !important;
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.7) !important;
   }
 }
 
@@ -279,34 +270,12 @@
   font-size: 1.15rem;
 }
 
-.keyFunction:hover {
-  background: #4a5c6e;
-}
-
-.keyFunction:active {
-  background: #0284c7 !important;
-  color: #ffffff !important;
-  border-color: #38bdf8 !important;
-  box-shadow: 0 0 16px rgba(2, 132, 199, 0.6) !important;
-}
-
 /* Botones Operadores (÷, ×, −, +, =) -> Naranja vibrante */
 .keyOperator {
   background: #f97316;
   color: #ffffff;
   font-size: 1.45rem;
   box-shadow: 0 4px 10px rgba(249, 115, 22, 0.25);
-}
-
-.keyOperator:hover {
-  background: #ea580c;
-}
-
-.keyOperator:active {
-  background: #ffffff !important;
-  color: #ea580c !important;
-  border-color: #ffffff !important;
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.85) !important;
 }
 
 /* ── Panel de Historial Desplegable ── */

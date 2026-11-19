@@ -5,6 +5,17 @@ Todas las modificaciones notables en este proyecto serán documentadas en este a
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.2] - 2026-11-18
+
+### Corregido (Fixed)
+- **Animación y Material Liquid Glass Nativo en Tabs:**
+  - Sustituida la cápsula estática por un **indicador deslizante fluido (`.activeIndicator`)** con curva de transición elástica Apple (`cubic-bezier(0.25, 1, 0.35, 1)`).
+  - Material translúcido ultra-refinado libre de bordes blancos artificiales o fondos oscuros pesados, alineado con el diseño nativo de iOS 18 y VisionOS.
+- **Coloración y Respuesta Táctil en Teclado de Calculadora:**
+  - Control determinístico del botón activo mediante estado Reactivo (`activeKey`) y eventos `pointerdown`/`pointerup`/`pointerleave`.
+  - Eliminado el bug de WebKit en iOS donde tocar una tecla (como el "7") coloreaba la tecla inferior ("4") por desfase de hit-testing de `:active`.
+  - Supresión de estados `:focus` o congelamientos de color en azul al levantar el dedo.
+
 ## [1.1.1] - 2026-11-18
 
 ### Añadido (Added)

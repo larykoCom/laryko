@@ -20,6 +20,7 @@ export function Calculator({ }: CalculatorProps) {
   const [tab, setTab] = useState<'calc' | 'percentages'>('calc')
   const [showHistory, setShowHistory] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [activeKey, setActiveKey] = useState<string | null>(null)
 
   const {
     formattedDisplay,
@@ -87,6 +88,13 @@ export function Calculator({ }: CalculatorProps) {
     triggerNativeHaptic('heavy')
     saveToHistory()
   }
+
+  const getKeyProps = (keyId: string) => ({
+    onPointerDown: () => setActiveKey(keyId),
+    onPointerUp: () => setActiveKey(null),
+    onPointerLeave: () => setActiveKey(null),
+    onPointerCancel: () => setActiveKey(null),
+  })
 
   return (
     <div className={styles.calculatorWrapper}>
@@ -200,32 +208,48 @@ export function Calculator({ }: CalculatorProps) {
             {/* Fila 1 */}
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyFunction}`}
-              onClick={handleClear}
+              className={`${styles.keyBtn} ${styles.keyFunction} ${activeKey === 'AC' ? styles.keyActiveFunction : ''}`}
+              {...getKeyProps('AC')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleClear()
+              }}
               aria-label="Limpiar todo"
             >
               AC
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyFunction}`}
-              onClick={handleBackspace}
+              className={`${styles.keyBtn} ${styles.keyFunction} ${activeKey === 'backspace' ? styles.keyActiveFunction : ''}`}
+              {...getKeyProps('backspace')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleBackspace()
+              }}
               aria-label="Borrar dígito"
             >
               <Delete size={22} strokeWidth={2.2} />
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyFunction}`}
-              onClick={handlePercentage}
+              className={`${styles.keyBtn} ${styles.keyFunction} ${activeKey === 'percentage' ? styles.keyActiveFunction : ''}`}
+              {...getKeyProps('percentage')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handlePercentage()
+              }}
               aria-label="Porcentaje"
             >
               %
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => handleOperation('÷')}
+              className={`${styles.keyBtn} ${styles.keyOperator} ${activeKey === '÷' ? styles.keyActiveOperator : ''}`}
+              {...getKeyProps('÷')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleOperation('÷')
+              }}
               aria-label="Dividir"
             >
               ÷
@@ -234,29 +258,45 @@ export function Calculator({ }: CalculatorProps) {
             {/* Fila 2 */}
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('7')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '7' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('7')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('7')
+              }}
             >
               7
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('8')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '8' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('8')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('8')
+              }}
             >
               8
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('9')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '9' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('9')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('9')
+              }}
             >
               9
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => handleOperation('×')}
+              className={`${styles.keyBtn} ${styles.keyOperator} ${activeKey === '×' ? styles.keyActiveOperator : ''}`}
+              {...getKeyProps('×')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleOperation('×')
+              }}
               aria-label="Multiplicar"
             >
               ×
@@ -265,29 +305,45 @@ export function Calculator({ }: CalculatorProps) {
             {/* Fila 3 */}
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('4')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '4' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('4')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('4')
+              }}
             >
               4
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('5')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '5' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('5')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('5')
+              }}
             >
               5
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('6')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '6' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('6')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('6')
+              }}
             >
               6
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => handleOperation('−')}
+              className={`${styles.keyBtn} ${styles.keyOperator} ${activeKey === '−' ? styles.keyActiveOperator : ''}`}
+              {...getKeyProps('−')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleOperation('−')
+              }}
               aria-label="Restar"
             >
               −
@@ -296,29 +352,45 @@ export function Calculator({ }: CalculatorProps) {
             {/* Fila 4 */}
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('1')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '1' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('1')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('1')
+              }}
             >
               1
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('2')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '2' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('2')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('2')
+              }}
             >
               2
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('3')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '3' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('3')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('3')
+              }}
             >
               3
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={() => handleOperation('+')}
+              className={`${styles.keyBtn} ${styles.keyOperator} ${activeKey === '+' ? styles.keyActiveOperator : ''}`}
+              {...getKeyProps('+')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleOperation('+')
+              }}
               aria-label="Sumar"
             >
               +
@@ -327,31 +399,47 @@ export function Calculator({ }: CalculatorProps) {
             {/* Fila 5: 0, 00, ., = (Guarda en historial) */}
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('0')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '0' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('0')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('0')
+              }}
             >
               0
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={() => handleDigit('00')}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '00' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('00')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDigit('00')
+              }}
               aria-label="Doble cero"
             >
               00
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyNumber}`}
-              onClick={handleDot}
+              className={`${styles.keyBtn} ${styles.keyNumber} ${activeKey === '.' ? styles.keyActiveNumber : ''}`}
+              {...getKeyProps('.')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleDot()
+              }}
               aria-label="Punto decimal"
             >
               .
             </button>
             <button
               type="button"
-              className={`${styles.keyBtn} ${styles.keyOperator}`}
-              onClick={handleSave}
+              className={`${styles.keyBtn} ${styles.keyOperator} ${activeKey === '=' ? styles.keyActiveOperator : ''}`}
+              {...getKeyProps('=')}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                handleSave()
+              }}
               aria-label="Guardar en historial"
               title="Guardar en historial"
             >
