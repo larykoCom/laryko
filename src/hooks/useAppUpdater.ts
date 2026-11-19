@@ -29,7 +29,7 @@ function getUpdateAction(platform: Platform, _latestTag: string): UpdateAction {
       }
       return {
         type: 'sidestore',
-        url: `sidestore://install?url=${encodeURIComponent(`${BASE_DOWNLOAD}/Laryko-iOS.ipa`)}`,
+        url: `sidestore://install?url=${encodeURIComponent(`${BASE_DOWNLOAD}/com.laryko.ipa`)}`,
       }
     case 'android':
       return { type: 'download', url: `${BASE_DOWNLOAD}/Laryko-Android.apk` }

@@ -92,7 +92,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Laryko ${{ github.ref_name }}'
-          releaseBody: 'See changelog for details.'
           releaseDraft: true
           prerelease: false
           args: --target x86_64-pc-windows-msvc
@@ -332,12 +331,15 @@ jobs:
           mkdir -p build/Payload
           cp -r build/Laryko.xcarchive/Products/Applications/App.app build/Payload/Laryko.app
           cd build && zip -r Laryko-iOS.ipa Payload/
+          cp -f Laryko-iOS.ipa com.laryko.ipa
 
       - name: Upload iOS IPA
         uses: actions/upload-artifact@v4
         with:
           name: Laryko-iOS
-          path: build/Laryko-iOS.ipa
+          path: |
+            build/Laryko-iOS.ipa
+            build/com.laryko.ipa
 
   # ─────────────────────────────────────────────────────────────
   # Job 7: Publish Release con artefactos de nombre fijo
@@ -359,18 +361,27 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Get changelog from tag annotation
-        id: tag
+      - name: Extract Changelog from CHANGELOG.md
         run: |
-          TAG_MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}" 2>/dev/null || echo "")
-          echo "body=${TAG_MSG:-Release ${{ github.ref_name }}}" >> $GITHUB_OUTPUT
+          VERSION="${{ github.ref_name }}"
+          CLEAN_VER="${VERSION#v}"
+          node -e "
+            const fs = require('fs');
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const match = changelog.match(new RegExp('## \\\[' + '$CLEAN_VER' + '\\\][^\\\n]*\\\n([\\\\s\\\\S]*?)(?=\\\n## \\\[|$)'));
+            if (match && match[1]) {
+              fs.writeFileSync('RELEASE_NOTES.md', match[1].trim());
+            } else {
+              fs.writeFileSync('RELEASE_NOTES.md', 'Laryko ' + '$VERSION');
+            }
+          "
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Laryko ${{ github.ref_name }}
-          body: ${{ steps.tag.outputs.body }}
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
           files: |
@@ -379,5 +390,6 @@ jobs:
             artifacts/Laryko-Linux/Laryko-Linux.AppImage
             artifacts/Laryko-Android/Laryko-Android.apk
             artifacts/Laryko-iOS/Laryko-iOS.ipa
+            artifacts/Laryko-iOS/com.laryko.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
