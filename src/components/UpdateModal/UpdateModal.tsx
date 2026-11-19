@@ -1,20 +1,34 @@
-import { Sparkles, CheckCircle2, X, ArrowRight } from 'lucide-react'
+import { Sparkles, CheckCircle2, X, ArrowRight, DownloadCloud } from 'lucide-react'
 import type { UpdateInfo } from '@/types'
+import type { DownloadProgress } from '@/hooks/useAppUpdater'
 import styles from './UpdateModal.module.css'
 
 interface UpdateModalProps {
   updateInfo: UpdateInfo
+  isDownloading?: boolean
+  downloadProgress?: DownloadProgress | null
   onUpdate: () => void
   onClose: () => void
 }
 
-export function UpdateModal({ updateInfo, onUpdate, onClose }: UpdateModalProps) {
+export function UpdateModal({
+  updateInfo,
+  isDownloading = false,
+  downloadProgress = null,
+  onUpdate,
+  onClose,
+}: UpdateModalProps) {
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={() => !isDownloading && onClose()}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2 className={styles.title}>
-            {updateInfo.hasUpdate ? (
+            {isDownloading ? (
+              <>
+                <DownloadCloud size={20} color="var(--color-accent)" style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                Descargando actualización
+              </>
+            ) : updateInfo.hasUpdate ? (
               <>
                 <Sparkles size={20} color="var(--color-accent)" style={{ verticalAlign: 'middle', marginRight: 6 }} />
                 Actualización disponible
@@ -26,12 +40,43 @@ export function UpdateModal({ updateInfo, onUpdate, onClose }: UpdateModalProps)
               </>
             )}
           </h2>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Cerrar">
-            <X size={18} />
-          </button>
+          {!isDownloading && (
+            <button className={styles.closeBtn} onClick={onClose} aria-label="Cerrar">
+              <X size={18} />
+            </button>
+          )}
         </div>
 
-        {updateInfo.hasUpdate ? (
+        {isDownloading ? (
+          <div className={styles.downloadContainer}>
+            <div className={styles.downloadHeader}>
+              <span className={styles.downloadTitle}>
+                {downloadProgress && downloadProgress.percentage >= 100
+                  ? 'Descarga completa. Abriendo instalador...'
+                  : 'Descargando paquetes del sistema...'}
+              </span>
+              <span className={styles.downloadPercent}>
+                {Math.round(downloadProgress?.percentage ?? 0)}%
+              </span>
+            </div>
+
+            <div className={styles.progressBarBg}>
+              <div
+                className={styles.progressBarFill}
+                style={{ width: `${Math.min(100, downloadProgress?.percentage ?? 0)}%` }}
+              />
+            </div>
+
+            <div className={styles.downloadDetails}>
+              <span>
+                {downloadProgress?.total && downloadProgress.total > 0
+                  ? `${(downloadProgress.downloaded / (1024 * 1024)).toFixed(1)} MB de ${(downloadProgress.total / (1024 * 1024)).toFixed(1)} MB`
+                  : 'Conectando con el servidor...'}
+              </span>
+              <span className={styles.pulseDot} />
+            </div>
+          </div>
+        ) : updateInfo.hasUpdate ? (
           <>
             <div className={styles.versionInfo}>
               <span className={styles.versionBadge}>v{updateInfo.currentVersion}</span>

@@ -34,20 +34,40 @@ function getUpdateAction(platform: Platform, _latestTag: string): UpdateAction {
     case 'android':
       return { type: 'download', url: `${BASE_DOWNLOAD}/Laryko-Android.apk` }
     case 'windows':
-      return { type: 'tauri', url: `${BASE_DOWNLOAD}/Laryko-Windows.exe` }
+      return {
+        type: 'tauri',
+        url: `${BASE_DOWNLOAD}/Laryko-Windows.exe`,
+        filename: 'Laryko-Windows.exe',
+      }
     case 'macos':
-      return { type: 'tauri', url: `${BASE_DOWNLOAD}/Laryko-macOS.dmg` }
+      return {
+        type: 'tauri',
+        url: `${BASE_DOWNLOAD}/Laryko-macOS.dmg`,
+        filename: 'Laryko-macOS.dmg',
+      }
     case 'linux':
-      return { type: 'tauri', url: `${BASE_DOWNLOAD}/Laryko-Linux.AppImage` }
+      return {
+        type: 'tauri',
+        url: `${BASE_DOWNLOAD}/Laryko-Linux.AppImage`,
+        filename: 'Laryko-Linux.AppImage',
+      }
     default:
       return { type: 'reload' }
   }
+}
+
+export interface DownloadProgress {
+  downloaded: number
+  total: number
+  percentage: number
 }
 
 export function useAppUpdater(platform: Platform, currentVersion: string) {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null)
 
   const checkForUpdates = useCallback(async () => {
     setChecking(true)
@@ -97,16 +117,49 @@ export function useAppUpdater(platform: Platform, currentVersion: string) {
         break
       case 'tauri':
         try {
-          const { check } = await import('@tauri-apps/plugin-updater')
-          const update = await check()
-          if (update) await update.downloadAndInstall()
-          else window.open(action.url!, '_blank')
-        } catch {
-          window.open(action.url!, '_blank')
+          setIsDownloading(true)
+          setDownloadProgress({ downloaded: 0, total: 0, percentage: 0 })
+
+          const { listen } = await import('@tauri-apps/api/event')
+          const { invoke } = await import('@tauri-apps/api/core')
+
+          const unlisten = await listen<DownloadProgress>(
+            'update-download-progress',
+            (event) => {
+              setDownloadProgress(event.payload)
+            }
+          )
+
+          try {
+            await invoke('download_and_install_update', {
+              url: action.url,
+              filename: action.filename,
+            })
+          } finally {
+            unlisten()
+          }
+        } catch (err) {
+          setIsDownloading(false)
+          setDownloadProgress(null)
+          setError(err instanceof Error ? err.message : String(err))
+          try {
+            const { invoke } = await import('@tauri-apps/api/core')
+            await invoke('open_external_url', { url: action.url })
+          } catch {
+            window.open(action.url!, '_blank')
+          }
         }
         break
     }
   }, [updateInfo, platform])
 
-  return { updateInfo, checking, error, checkForUpdates, executeUpdate }
+  return {
+    updateInfo,
+    checking,
+    error,
+    isDownloading,
+    downloadProgress,
+    checkForUpdates,
+    executeUpdate,
+  }
 }

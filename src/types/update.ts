@@ -20,4 +20,5 @@ export interface UpdateInfo {
 export interface UpdateAction {
   type: 'reload' | 'sidestore' | 'download' | 'tauri'
   url?: string
+  filename?: string
 }

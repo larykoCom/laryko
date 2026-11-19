@@ -37,10 +37,15 @@ export function App() {
   const appInfo = usePlatform()
   const isOnline = useOnlineStatus()
   const { value, increment, decrement } = useCounter()
-  const { updateInfo, checking, error, checkForUpdates, executeUpdate } = useAppUpdater(
-    appInfo.platform,
-    appInfo.version,
-  )
+  const {
+    updateInfo,
+    checking,
+    error,
+    isDownloading,
+    downloadProgress,
+    checkForUpdates,
+    executeUpdate,
+  } = useAppUpdater(appInfo.platform, appInfo.version)
 
   const [activeTool, setActiveTool] = useState<ActiveTool>('home')
   const [showModal, setShowModal] = useState(false)
@@ -183,11 +188,20 @@ export function App() {
       {showModal && updateInfo && (
         <UpdateModal
           updateInfo={updateInfo}
-          onUpdate={() => {
-            executeUpdate()
-            setShowModal(false)
+          isDownloading={isDownloading}
+          downloadProgress={downloadProgress}
+          onUpdate={async () => {
+            const isDesktop = ['macos', 'windows', 'linux'].includes(appInfo.platform)
+            if (!isDesktop) {
+              setShowModal(false)
+            }
+            await executeUpdate()
           }}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            if (!isDownloading) {
+              setShowModal(false)
+            }
+          }}
         />
       )}
     </div>
