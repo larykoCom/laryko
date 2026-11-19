@@ -5,6 +5,29 @@ Todas las modificaciones notables en este proyecto serán documentadas en este a
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.1] - 2026-11-18
+
+### Añadido (Added)
+- **Puente Nativo Swift para iOS (`NativeIOSBridge`):**
+  - Conexión nativa con el motor háptico de Apple (Taptic Engine) para feedback físico instantáneo en dígitos, operadores, cálculo final y cambio de pestañas.
+  - Gestión nativa de transparencia del lienzo en `WKWebView` para mezcla pura de efectos de fondo translúcidos.
+  - Copia al portapapeles con confirmación háptica (`copyToClipboardWithHaptic`).
+  - Detección de capacidades del sistema para Liquid Glass (iOS 18+ y VisionOS).
+- **Perfeccionamiento Visual y Óptico Liquid Glass (Estilo Apple Vision / iOS):**
+  - Lente de cristal líquido convexo en tabs activos con refracción multicapa.
+  - Borde con aberración cromática e iridiscencia prismática (`-webkit-mask-composite: xor`).
+  - Reflejo especular convexo superior simulando curvatura física tridimensional.
+- **Feedback Táctil y de Color Inmediato:**
+  - Iluminación en alto contraste al pulsar teclas (azul eléctrico en números, destello blanco en operadores y cian en funciones).
+  - Activación sin latencia táctil en iOS WebKit mediante detector de toques pasivo.
+
+### Corregido (Fixed)
+- **Desfase Táctil en Teclado de Calculadora:**
+  - Corregido el desplazamiento vertical involuntario que provocaba que pulsar "4" interceptara la fila "1" en iOS.
+  - Aislamiento de toques con `touch-action: manipulation` y eliminación de retrasos de 300ms con `maximum-scale=1.0, user-scalable=no`.
+- **Scroll / Rebote Elástico Innecesario en iOS:**
+  - Eliminado el rebote de pantalla (*rubber-banding*) mediante contención de viewport (`overscroll-behavior: none`, `height: 100dvh`).
+
 ## [1.1.0] - 2026-11-18
 
 ### Añadido (Added)
