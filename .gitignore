@@ -43,3 +43,4 @@ android/app/src/main/assets/public/
 
 # TypeScript
 *.tsbuildinfo
+.vercel

@@ -1,0 +1,35 @@
+# ============================================================
+# .vercelignore – Archivos ignorados en el despliegue a Vercel
+# Solo se envía el código fuente web (reduce subida de ~800MB a <1MB)
+# ============================================================
+
+# 1. Plataforma de Escritorio (Tauri / Rust)
+src-tauri/
+
+# 2. Plataformas Móviles Nativas (Capacitor)
+android/
+ios/
+capacitor.config.ts
+
+# 3. Dependencias y Caches Locales
+node_modules/
+.pnpm-store/
+dist/
+dist-ssr/
+.vercel/
+
+# 4. Git y Hooks
+.git/
+.github/
+.githooks/
+
+# 5. Documentación y configuración interna
+*.md
+LICENSE
+
+# 7. Editores y Archivos del Sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
