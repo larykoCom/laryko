@@ -1,8 +1,10 @@
 {
   "version": 2,
+  "framework": "vite",
+  "cleanUrls": true,
   "rewrites": [
-    { "source": "/\.well-known/(.*)", "destination": "/\.well-known/$1" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/.well-known/(.*)", "destination": "/.well-known/$1" },
+    { "source": "/((?!assets/|favicon\\.svg|apple-touch-icon\\.png|robots\\.txt|apps\\.json|manifest\\.webmanifest|sw\\.js|workbox-.*\\.js).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

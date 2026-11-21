@@ -45,9 +45,20 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  .tabBar {
+    background: #141416;
+    border-color: #27272a;
+  }
+
   .tabBtn {
-    background: #1e293b;
-    color: #94a3b8;
+    background: #27272a;
+    color: #f1f5f9;
+  }
+
+  .historyToggleBtn {
+    background: #334155;
+    color: #ffffff;
+    border: 1px solid #475569;
   }
 }
 
@@ -149,26 +160,30 @@
   color: #f97316;
 }
 
+@media (prefers-color-scheme: dark) {
+  .copyActionBtn {
+    color: #cbd5e1;
+  }
+}
+
 .expressionText {
   font-size: var(--font-size-base);
   color: #64748b;
   min-height: 1.5rem;
-  font-family: var(--font-mono);
   word-break: break-all;
   text-align: right;
-  font-weight: 500;
+  font-weight: bold;
 }
 
 @media (prefers-color-scheme: dark) {
   .expressionText {
-    color: #94a3b8;
+    color: #cbd5e1;
   }
 }
 
 .resultText {
   font-size: clamp(2.2rem, 8vw, 3rem);
-  font-weight: 800;
-  font-family: var(--font-mono);
+  font-weight: bold;
   color: #0f172a;
   line-height: 1.1;
   word-break: break-all;
@@ -203,12 +218,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 70ms ease,
-              background-color 70ms ease,
-              color 70ms ease,
-              border-color 70ms ease,
-              box-shadow 70ms ease,
-              filter 70ms ease;
+  transition:
+    transform 70ms ease,
+    background-color 70ms ease,
+    color 70ms ease,
+    border-color 70ms ease,
+    box-shadow 70ms ease,
+    filter 70ms ease;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -268,6 +284,14 @@
   background: #5c6f84;
   color: #ffffff;
   font-size: 1.15rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .keyFunction {
+    background: #334155;
+    color: #ffffff;
+    border: 1px solid #475569;
+  }
 }
 
 /* Botones Operadores (÷, ×, −, +, =) -> Naranja vibrante */
@@ -349,6 +373,12 @@
   font-size: var(--font-size-xs);
   color: #64748b;
   font-family: var(--font-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  .histExpr {
+    color: #cbd5e1;
+  }
 }
 
 .histResult {

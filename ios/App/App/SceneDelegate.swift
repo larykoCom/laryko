@@ -164,18 +164,20 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
     private let nativeTabBar = UITabBar()
     private var homeTabItem: UITabBarItem!
     private var calcTabItem: UITabBarItem!
+    private var thanksTabItem: UITabBarItem!
 
     override open func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1.0)
         setupNativeTabBar()
+        setNativeTabBarVisible(false)
     }
 
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(NativeIOSBridge())
-        webView?.backgroundColor = .systemBackground
-        webView?.scrollView.backgroundColor = .systemBackground
+        webView?.backgroundColor = UIColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1.0)
+        webView?.scrollView.backgroundColor = UIColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1.0)
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
     }
 
@@ -208,7 +210,14 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         )
         calcTabItem.tag = 1
 
-        nativeTabBar.items = [homeTabItem, calcTabItem]
+        thanksTabItem = UITabBarItem(
+            title: "Thanks",
+            image: UIImage(systemName: "sparkles"),
+            selectedImage: UIImage(systemName: "sparkles")
+        )
+        thanksTabItem.tag = 2
+
+        nativeTabBar.items = [homeTabItem, calcTabItem, thanksTabItem]
         nativeTabBar.selectedItem = homeTabItem
 
         view.addSubview(nativeTabBar)
@@ -221,7 +230,12 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
     }
 
     func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
-        let tab = item.tag == 0 ? "home" : "calculator"
+        let tab: String
+        switch item.tag {
+        case 1: tab = "calculator"
+        case 2: tab = "thanks"
+        default: tab = "home"
+        }
         let script = "window.dispatchEvent(new CustomEvent('larykoNativeTabSelected', { detail: { tab: '\(tab)' } }))"
         webView?.evaluateJavaScript(script, completionHandler: nil)
     }
@@ -231,6 +245,8 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
             nativeTabBar.selectedItem = homeTabItem
         } else if tab == "calculator" {
             nativeTabBar.selectedItem = calcTabItem
+        } else if tab == "thanks" {
+            nativeTabBar.selectedItem = thanksTabItem
         }
     }
 
@@ -249,7 +265,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.backgroundColor = .systemBackground
+        window?.backgroundColor = UIColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1.0)
         window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
 

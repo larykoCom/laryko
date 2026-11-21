@@ -39,6 +39,20 @@
   transform: none;
 }
 
+@media (prefers-color-scheme: dark) {
+  .circleBtn {
+    background: #18181b;
+    border-color: #27272a;
+    color: #f4f4f5;
+  }
+
+  .circleBtn:hover {
+    background: #27272a;
+    border-color: #60a5fa;
+    color: #60a5fa;
+  }
+}
+
 .iconWrapper {
   display: inline-flex;
   align-items: center;

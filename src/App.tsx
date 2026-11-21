@@ -8,11 +8,12 @@ import {
   Zap,
   Calculator as CalculatorIcon,
   ChevronRight,
-  Minus,
-  Plus,
-  AlertTriangle,
+  Sparkles,
+  Heart,
+  ShieldCheck,
+  Cpu,
 } from 'lucide-react'
-import { usePlatform, useOnlineStatus, useCounter, useAppUpdater } from '@/hooks'
+import { usePlatform, useOnlineStatus, useAppUpdater } from '@/hooks'
 import {
   StatusBadge,
   UpdateModal,
@@ -37,11 +38,9 @@ const PLATFORM_ICONS: Record<string, ReactNode> = {
 export function App() {
   const appInfo = usePlatform()
   const isOnline = useOnlineStatus()
-  const { value, increment, decrement } = useCounter()
   const {
     updateInfo,
     checking,
-    error,
     isDownloading,
     downloadProgress,
     checkForUpdates,
@@ -85,7 +84,7 @@ export function App() {
 
       {/* ── Contenedor de Vistas / Sub-apps ── */}
       <main className={styles.container}>
-        {activeTool === 'home' ? (
+        {activeTool === 'home' && (
           <>
             {/* ── Brand Header ── */}
             <header className={styles.header}>
@@ -93,7 +92,7 @@ export function App() {
                 <Zap size={38} strokeWidth={2.5} />
               </div>
               <h1 className={styles.title}>Laryko</h1>
-              <p className={styles.subtitle}>Hub de Herramientas Offline-First</p>
+              <p className={styles.subtitle}>Hub de Herramientas</p>
             </header>
 
             {/* ── Sección de Herramientas del Hub ── */}
@@ -108,7 +107,10 @@ export function App() {
                 <button
                   type="button"
                   className={styles.toolCard}
-                  onClick={() => setActiveTool('calculator')}
+                  onClick={() => {
+                    triggerNativeHaptic('selection')
+                    setActiveTool('calculator')
+                  }}
                   aria-label="Abrir Calculadora"
                 >
                   <div className={styles.toolContent}>
@@ -116,9 +118,35 @@ export function App() {
                       <CalculatorIcon size={24} strokeWidth={2} />
                     </div>
                     <div className={styles.toolMeta}>
-                      <span className={styles.toolName}>Calculadora</span>
+                      <span className={styles.toolName}>Calculadora Inteligente</span>
                       <span className={styles.toolDesc}>
-                        Aritmética rápida, soporte offline e historial persistente.
+                        Aritmética rápida, conversión de porcentajes e historial sin conexión.
+                      </span>
+                    </div>
+                  </div>
+                  <span className={styles.toolAction}>
+                    <ChevronRight size={20} strokeWidth={2.2} />
+                  </span>
+                </button>
+
+                {/* Próxima herramienta: Coming Soon */}
+                <button
+                  type="button"
+                  className={styles.toolCard}
+                  onClick={() => {
+                    triggerNativeHaptic('selection')
+                    setActiveTool('thanks')
+                  }}
+                  aria-label="Ver agradecimientos y próximas utilidades"
+                >
+                  <div className={styles.toolContent}>
+                    <div className={styles.toolIcon}>
+                      <Sparkles size={24} strokeWidth={2} />
+                    </div>
+                    <div className={styles.toolMeta}>
+                      <span className={styles.toolName}>Más Utilidades (Coming Soon)</span>
+                      <span className={styles.toolDesc}>
+                        Conversor de unidades, notas rápidas y cronómetro en camino.
                       </span>
                     </div>
                   </div>
@@ -128,47 +156,6 @@ export function App() {
                 </button>
               </div>
             </section>
-
-            {/* ── Widget Interactivo Offline (Dexie.js) ── */}
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <span className={styles.sectionTitle}>Almacenamiento Local</span>
-                <span className={styles.storageTag}>Dexie.js</span>
-              </div>
-
-              <div className={styles.widgetCard}>
-                <div className={styles.widgetHeader}>
-                  <span className={styles.widgetLabel}>Contador Persistente</span>
-                </div>
-
-                <div className={styles.counterControl}>
-                  <button
-                    type="button"
-                    className={styles.counterBtn}
-                    onClick={decrement}
-                    aria-label="Decrementar"
-                  >
-                    <Minus size={16} strokeWidth={2.5} />
-                  </button>
-                  <span className={styles.counterValue}>{value}</span>
-                  <button
-                    type="button"
-                    className={styles.counterBtn}
-                    onClick={increment}
-                    aria-label="Incrementar"
-                  >
-                    <Plus size={16} strokeWidth={2.5} />
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            {error && (
-              <p className={styles.errorMsg}>
-                <AlertTriangle size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                {error}
-              </p>
-            )}
 
             {/* ── Minimal Footer ── */}
             <footer className={styles.footer}>
@@ -180,12 +167,60 @@ export function App() {
               </p>
             </footer>
           </>
-        ) : (
+        )}
+
+        {activeTool === 'calculator' && (
           <Calculator platform={appInfo.platform} />
+        )}
+
+        {activeTool === 'thanks' && (
+          <div className={styles.thanksWrapper}>
+            <div className={styles.thanksIconBadge}>
+              <Heart size={32} strokeWidth={2.4} />
+            </div>
+            <h2 className={styles.title}>¡Gracias por usar Laryko!</h2>
+            <p className={styles.subtitle}>
+              Construyendo herramientas de alto rendimiento, privadas y 100% offline-first.
+            </p>
+
+            <div className={styles.thanksCard}>
+              <div className={styles.thanksCardTitle}>
+                <ShieldCheck size={20} color="#10b981" />
+                <span>Privacidad y Autonomía</span>
+              </div>
+              <p className={styles.thanksCardDesc}>
+                Tus datos nunca salen de tu dispositivo. Todas las operaciones, historial y configuraciones se procesan de forma local.
+              </p>
+            </div>
+
+            <div className={styles.thanksCard}>
+              <div className={styles.thanksCardTitle}>
+                <Cpu size={20} color="#3b82f6" />
+                <span>Próximas Utilidades (Coming Soon)</span>
+              </div>
+              <p className={styles.thanksCardDesc}>
+                • Conversor universal de unidades y divisas<br />
+                • Bloc de notas rápidas con cifrado local<br />
+                • Temporizador y cronómetro de alta precisión
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className={styles.primaryActionBtn}
+              onClick={() => {
+                triggerNativeHaptic('selection')
+                setActiveTool('calculator')
+              }}
+            >
+              <CalculatorIcon size={18} strokeWidth={2.2} />
+              <span>Abrir Calculadora</span>
+            </button>
+          </div>
         )}
       </main>
 
-      {/* ── Barra Inferior Flotante (Liquid Glass) ── */}
+      {/* ── Barra Inferior Flotante (Liquid Glass Dock) ── */}
       <BottomBar
         activeTool={activeTool}
         onSelectTool={setActiveTool}

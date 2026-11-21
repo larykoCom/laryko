@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Home, Calculator as CalculatorIcon } from 'lucide-react'
+import { Home, Calculator as CalculatorIcon, Sparkles } from 'lucide-react'
 import { GlassEffectContainer } from '@/components/GlassEffectContainer'
 import { triggerNativeHaptic, NativeIOSBridge } from '@/utils/nativeIOSBridge'
 import type { Platform } from '@/types'
 import styles from './BottomBar.module.css'
 
-export type ActiveTool = 'home' | 'calculator'
+export type ActiveTool = 'home' | 'calculator' | 'thanks'
 
 export interface NavItemConfig {
   id: ActiveTool
@@ -23,6 +23,7 @@ export interface BottomBarProps {
 const NAV_ITEMS: NavItemConfig[] = [
   { id: 'home', label: 'Inicio', icon: <Home size={20} strokeWidth={2.2} /> },
   { id: 'calculator', label: 'Calculadora', icon: <CalculatorIcon size={20} strokeWidth={2.2} /> },
+  { id: 'thanks', label: 'Thanks', icon: <Sparkles size={20} strokeWidth={2.2} />, badge: 'Pronto' },
 ]
 
 export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: BottomBarProps) {
@@ -47,7 +48,7 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
     }
   }, [platform, activeTool, onSelectTool])
 
-  const activeIndex = NAV_ITEMS.findIndex((item) => item.id === activeTool)
+  const activeIndex = Math.max(0, NAV_ITEMS.findIndex((item) => item.id === activeTool))
   const dockRef = useRef<HTMLElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffsetPx, setDragOffsetPx] = useState<number | null>(null)
@@ -57,11 +58,6 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
   useEffect(() => {
     setLastHapticIndex(activeIndex)
   }, [activeIndex])
-
-  // Si estamos en iOS, la barra inferior la provee el UITabBar nativo de UIKit
-  if (platform === 'ios') {
-    return null
-  }
 
   const handleSelect = (toolId: ActiveTool) => {
     triggerNativeHaptic('selection')
@@ -76,8 +72,9 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
     const gap = 6
     const numTabs = NAV_ITEMS.length
     const tabWidth = (rect.width - 2 * padding - gap * (numTabs - 1)) / numTabs
+    const slotStep = tabWidth + gap
     const maxOffset = rect.width - 2 * padding - tabWidth
-    return { rect, padding, gap, tabWidth, maxOffset }
+    return { rect, padding, gap, numTabs, tabWidth, slotStep, maxOffset }
   }
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -102,10 +99,13 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
     const currentOffset = Math.max(0, Math.min(metrics.maxOffset, touchX - metrics.tabWidth / 2))
     setDragOffsetPx(currentOffset)
 
-    // Respuesta física háptica al cruzar el umbral entre pestañas con el dedo
-    const hoveredIndex = currentOffset > metrics.maxOffset / 2 ? 1 : 0
-    if (hoveredIndex !== lastHapticIndex) {
-      setLastHapticIndex(hoveredIndex)
+    // Respuesta física háptica al cruzar los umbrales entre ranuras
+    const slotIndex = Math.max(
+      0,
+      Math.min(metrics.numTabs - 1, Math.round(currentOffset / metrics.slotStep)),
+    )
+    if (slotIndex !== lastHapticIndex) {
+      setLastHapticIndex(slotIndex)
       triggerNativeHaptic('selection')
     }
   }
@@ -115,7 +115,10 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
     const metrics = getMetrics()
     setIsDragging(false)
     if (metrics && dragOffsetPx !== null) {
-      const snapIndex = dragOffsetPx > metrics.maxOffset / 2 ? 1 : 0
+      const snapIndex = Math.max(
+        0,
+        Math.min(metrics.numTabs - 1, Math.round(dragOffsetPx / metrics.slotStep)),
+      )
       const targetTool = NAV_ITEMS[snapIndex].id
       if (targetTool !== activeTool) {
         triggerNativeHaptic('selection')
@@ -148,6 +151,7 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
         platform={platform}
         variant="dock"
         className={styles.bottomBar}
+        style={{ '--tab-count': NAV_ITEMS.length } as React.CSSProperties}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -160,7 +164,7 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
           style={{
             transform:
               dragOffsetPx !== null
-                ? `translateX(${dragOffsetPx}px) scale(${isDragging ? '1.06, 0.94' : '1, 1'})`
+                ? `translateX(${dragOffsetPx}px) scale(${isDragging ? '1.05, 0.95' : '1, 1'})`
                 : `translateX(calc(${activeIndex * 100}% + ${activeIndex * 6}px))`,
           }}
           aria-hidden="true"

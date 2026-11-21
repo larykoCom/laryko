@@ -24,12 +24,13 @@
   align-items: center;
   gap: 6px;
   padding: 5px 6px;
-  max-width: 92vw;
+  max-width: 94vw;
   width: auto;
   border-radius: var(--radius-full);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  --tab-count: 3;
 }
 
 /* ── Indicador Deslizante Liquid Glass Nativo (Fluid Sliding Capsule) ── */
@@ -38,7 +39,7 @@
   top: 5px;
   bottom: 5px;
   left: 6px;
-  width: calc((100% - 12px - 6px) / 2);
+  width: calc((100% - 12px - (var(--tab-count, 3) - 1) * 6px) / var(--tab-count, 3));
   border-radius: var(--radius-full);
   background: radial-gradient(
     circle at 50% -10%,
@@ -104,7 +105,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 7px 22px;
+  padding: 7px 16px;
   border-radius: var(--radius-full);
   color: var(--color-text-secondary);
   transition: color 250ms ease, transform 150ms ease;
@@ -112,7 +113,7 @@
   -webkit-user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  min-width: 74px;
+  min-width: 64px;
 }
 
 .navItem:active {
@@ -121,6 +122,17 @@
 
 .navItemActive {
   color: #ffffff !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .navItem {
+    color: #cbd5e1;
+  }
+
+  .navItemActive {
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+  }
 }
 
 @media (prefers-color-scheme: light) {
