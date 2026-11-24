@@ -189,6 +189,7 @@
 }
 
 .toolIcon {
+  color: var(--color-text-primary);
   font-size: 2rem;
   line-height: 1;
   width: 48px;
