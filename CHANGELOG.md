@@ -5,6 +5,21 @@ Todas las modificaciones notables en este proyecto serán documentadas en este a
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.2] - 2026-11-24
+
+### Añadido (Added)
+- **Iconos y Splash Screen para Android e iOS:**
+  - Actualización completa de los assets de branding (íconos de app y pantallas de splash) para Android e iOS.
+- **Despliegue en Vercel:**
+  - Configuración de reglas de ignorado de deploy (`vercel.json`) y exclusión del caché de build local.
+  - Corrección de escape de punto en la expresión regular de enrutamiento de `vercel.json`.
+
+### Corregido (Fixed)
+- **Resolución de paquetes en iOS:**
+  - Añadida resolución explícita de paquetes para evitar conflictos de versión en el entorno de iOS.
+- **Color del icono de herramienta:**
+  - Actualizado el color del icono de herramienta en los estilos globales para mayor coherencia visual.
+
 ## [1.1.1] - 2026-11-19
 
 ### Añadido (Added)
