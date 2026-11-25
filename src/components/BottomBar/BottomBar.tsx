@@ -5,7 +5,7 @@ import { triggerNativeHaptic, NativeIOSBridge } from '@/utils/nativeIOSBridge'
 import type { Platform } from '@/types'
 import styles from './BottomBar.module.css'
 
-export type ActiveTool = 'home' | 'calculator' | 'sessions' | 'thanks'
+export type ActiveTool = 'home' | 'calculator' | 'sessions' | 'account' | 'thanks'
 
 export interface NavItemConfig {
   id: ActiveTool

@@ -55,6 +55,23 @@ export interface PinConfig {
   updatedAt: Date
 }
 
+export interface UserVaultRecord {
+  id: number // siempre 1 (singleton)
+  salt: string
+  iv: string
+  ciphertext: string
+  updatedAt: Date
+}
+
+export interface UserPreferences {
+  id: number // siempre 1 (singleton)
+  displayName: string
+  idleSleepMinutes: number
+  autoSync: boolean
+  lastSyncAt: Date | null
+  updatedAt: Date
+}
+
 export class LarykoDB extends Dexie {
   notes!: EntityTable<Note, 'id'>
   counter!: EntityTable<Counter, 'id'>
@@ -62,6 +79,8 @@ export class LarykoDB extends Dexie {
   sessionGroups!: EntityTable<SessionGroup, 'id'>
   sessions!: EntityTable<WebSession, 'id'>
   pinConfig!: EntityTable<PinConfig, 'id'>
+  userVault!: EntityTable<UserVaultRecord, 'id'>
+  userPrefs!: EntityTable<UserPreferences, 'id'>
 
   constructor() {
     super('LarykoDB')
@@ -81,6 +100,16 @@ export class LarykoDB extends Dexie {
       sessionGroups: '++id, order, createdAt',
       sessions: '++id, &uuid, groupId, status, lastActiveAt',
       pinConfig: 'id',
+    })
+    this.version(4).stores({
+      notes: '++id, createdAt',
+      counter: 'id',
+      calculations: '++id, timestamp',
+      sessionGroups: '++id, order, createdAt',
+      sessions: '++id, &uuid, groupId, status, lastActiveAt',
+      pinConfig: 'id',
+      userVault: 'id',
+      userPrefs: 'id',
     })
   }
 }

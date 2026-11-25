@@ -17,6 +17,7 @@ import {
   Plus,
   Moon,
   Lock,
+  User,
 } from 'lucide-react'
 import { usePlatform, useOnlineStatus, useAppUpdater, useMultiSession } from '@/hooks'
 import {
@@ -26,6 +27,7 @@ import {
   UpdateCircleButton,
   Calculator,
   MultiSession,
+  UserPanel,
   type ActiveTool,
 } from '@/components'
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
@@ -225,10 +227,11 @@ export function App() {
               <button
                 type="button"
                 className={styles.sidebarSubBtn}
-                onClick={async () => {
+                onClick={() => {
                   triggerNativeHaptic('medium')
                   setCurrentSessionUuid(null)
-                  await multiSession.lockNow(true)
+                  setShowSessionManager(true)
+                  void multiSession.lockNow(true)
                 }}
                 title="Bloquear con PIN"
                 data-tooltip="Bloquear PIN"
@@ -248,11 +251,28 @@ export function App() {
             <StatusBadge isOnline={isOnline} />
           </div>
 
-          <UpdateCircleButton
-            checking={checking}
-            onClick={handleCheckUpdates}
-            hasUpdateAvailable={Boolean(updateInfo)}
-          />
+          <div className={styles.globalActionsGroup}>
+            <button
+              type="button"
+              className={`${styles.accountCircleBtn} ${
+                activeTool === 'account' ? styles.accountCircleBtnActive : ''
+              }`}
+              onClick={() => {
+                triggerNativeHaptic('selection')
+                setActiveTool('account')
+              }}
+              title="Cuenta y Sincronización"
+              aria-label="Cuenta y Sincronización"
+            >
+              <User size={16} strokeWidth={2.2} />
+            </button>
+
+            <UpdateCircleButton
+              checking={checking}
+              onClick={handleCheckUpdates}
+              hasUpdateAvailable={Boolean(updateInfo)}
+            />
+          </div>
         </div>
       </aside>
 
@@ -268,11 +288,28 @@ export function App() {
             <StatusBadge isOnline={isOnline} />
           </div>
 
-          <UpdateCircleButton
-            checking={checking}
-            onClick={handleCheckUpdates}
-            hasUpdateAvailable={Boolean(updateInfo)}
-          />
+          <div className={styles.globalActionsGroup}>
+            <button
+              type="button"
+              className={`${styles.accountCircleBtn} ${
+                activeTool === 'account' ? styles.accountCircleBtnActive : ''
+              }`}
+              onClick={() => {
+                triggerNativeHaptic('selection')
+                setActiveTool('account')
+              }}
+              title="Cuenta y Sincronización"
+              aria-label="Cuenta y Sincronización"
+            >
+              <User size={16} strokeWidth={2.2} />
+            </button>
+
+            <UpdateCircleButton
+              checking={checking}
+              onClick={handleCheckUpdates}
+              hasUpdateAvailable={Boolean(updateInfo)}
+            />
+          </div>
         </header>
 
         {/* ── Contenedor de Vistas / Sub-apps ── */}
@@ -402,6 +439,10 @@ export function App() {
             onToggleManager={setShowSessionManager}
             showAddFormSignal={addFormSignal}
           />
+        )}
+
+        {activeTool === 'account' && (
+          <UserPanel platform={appInfo.platform} />
         )}
 
         {activeTool === 'thanks' && (

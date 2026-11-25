@@ -239,17 +239,65 @@
 
   .sidebarFooter {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
+    width: 100%;
     padding-top: var(--spacing-3);
     border-top: 1px solid var(--color-border);
+  }
+
+  .sidebarFooter .statusPill {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .sidebarFooter .globalActionsGroup {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .desktopSidebarCompact .globalActionsGroup {
+    flex-direction: column;
+    justify-content: center;
   }
 
   .mainShell {
     height: 100%;
     overflow: hidden;
   }
+}
+
+.globalActionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accountCircleBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.accountCircleBtn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+}
+
+.accountCircleBtnActive {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-fg);
 }
 
 /* ── Top Bar (Pill de estado + Botón circular de actualizaciones) ── */
