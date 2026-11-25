@@ -160,7 +160,77 @@ export const integrationsBridge = {
       const { invoke } = await import('@tauri-apps/api/core')
       return invoke<string>('test_ai_provider', { provider, apiKey, baseUrl })
     }
-    return 'API Key guardada en bóveda cifrada (la prueba directa sin CORS está disponible en Escritorio).'
+    const models = await this.listAiModels(platform, provider, apiKey, baseUrl)
+    return models.length > 0
+      ? `Conexión verificada con ${provider} (${models.length} modelos disponibles).`
+      : `API Key guardada en bóveda cifrada.`
+  },
+
+  async listAiModels(
+    platform: Platform,
+    provider: 'openai' | 'anthropic' | 'gemini' | 'custom',
+    apiKey: string,
+    baseUrl?: string
+  ): Promise<string[]> {
+    if (isTauri(platform)) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return invoke<string[]>('list_ai_models', { provider, apiKey, baseUrl })
+    }
+
+    const key = apiKey.trim()
+    if (provider === 'gemini') {
+      if (!key) throw new Error('La API Key de Google Gemini es obligatoria.')
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+        headers: { 'x-goog-api-key': key },
+      })
+      if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`)
+      const json = (await res.json()) as {
+        models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>
+      }
+      return Array.from(
+        new Set(
+          (json.models ?? [])
+            .filter(
+              (m) =>
+                !m.supportedGenerationMethods ||
+                m.supportedGenerationMethods.includes('generateContent')
+            )
+            .map((m) => (m.name ?? '').replace(/^models\//, '').trim())
+            .filter(Boolean)
+        )
+      ).sort()
+    }
+
+    if (provider === 'openai' || provider === 'custom') {
+      const base =
+        provider === 'openai'
+          ? 'https://api.openai.com/v1'
+          : (baseUrl ?? '').trim().replace(/\/+$/, '')
+      if (provider === 'openai' && !key) {
+        throw new Error('La API Key de OpenAI es obligatoria.')
+      }
+      if (provider === 'custom') {
+        if (!/^https?:\/\//i.test(base)) {
+          throw new Error('La URL base debe usar https:// o http://')
+        }
+      }
+      const res = await fetch(`${base}/models`, {
+        headers: key ? { Authorization: `Bearer ${key}` } : undefined,
+      })
+      if (!res.ok) throw new Error(`IA HTTP ${res.status}`)
+      const json = (await res.json()) as {
+        data?: Array<{ id?: string }>
+        models?: Array<{ id?: string; name?: string; model?: string }>
+      }
+      const items: Array<{ id?: string; name?: string; model?: string }> =
+        json.data ?? json.models ?? []
+      const raw = items.map((item) => item.id ?? item.name ?? item.model ?? '')
+      return Array.from(new Set(raw.map((s) => s.trim()).filter(Boolean))).sort()
+    }
+
+    throw new Error(
+      'Listar modelos de Anthropic Claude desde navegador requiere la app de Escritorio (Tauri) por políticas CORS.'
+    )
   },
 
   async aiChatCompletion(
@@ -173,71 +243,95 @@ export const integrationsBridge = {
       model?: string
     }
   ): Promise<string> {
-    if (isTauri(platform)) {
-      const { invoke } = await import('@tauri-apps/api/core')
-      return invoke<string>('ai_chat_completion', options)
-    }
+    const runOnce = async (): Promise<string> => {
+      if (isTauri(platform)) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        try {
+          return await invoke<string>('ai_chat_completion', options)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          const isTransportErr =
+            /error sending request|timeout|connection|timed out/i.test(msg) &&
+            options.provider !== 'anthropic'
+          if (!isTransportErr) throw err
+        }
+      }
 
-    // Fallback HTTP para Web/Móvil (OpenAI / Gemini / Custom)
-    if (options.provider === 'gemini') {
-      const model = options.model || 'gemini-2.5-flash'
-      const systemText = options.messages
-        .filter((m) => m.role === 'system')
-        .map((m) => m.content)
-        .join('\n')
-      const contents = options.messages
-        .filter((m) => m.role !== 'system')
-        .map((m) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        }))
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
+      // Fallback HTTP para Web/Móvil (OpenAI / Gemini / Custom)
+      if (options.provider === 'gemini') {
+        const model = options.model || 'gemini-3.8-flash'
+        const systemText = options.messages
+          .filter((m) => m.role === 'system')
+          .map((m) => m.content)
+          .join('\n')
+        const contents = options.messages
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }],
+          }))
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: 'POST',
+            headers: {
+              'x-goog-api-key': options.apiKey.trim(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: systemText }] },
+              contents,
+            }),
+          }
+        )
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '')
+          throw new Error(`Gemini HTTP ${res.status}${errText ? `: ${errText}` : ''}`)
+        }
+        const json = (await res.json()) as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+        }
+        return json.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sin respuesta.'
+      }
+
+      if (options.provider === 'openai' || options.provider === 'custom') {
+        const base =
+          options.provider === 'openai'
+            ? 'https://api.openai.com/v1'
+            : (options.baseUrl ?? '').trim().replace(/\/+$/, '')
+        const res = await fetch(`${base}/chat/completions`, {
           method: 'POST',
           headers: {
-            'x-goog-api-key': options.apiKey.trim(),
+            ...(options.apiKey.trim() ? { Authorization: `Bearer ${options.apiKey.trim()}` } : {}),
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemText }] },
-            contents,
+            model: options.model || 'gpt-4o-mini',
+            messages: options.messages,
+            temperature: 0.4,
           }),
+        })
+        if (!res.ok) throw new Error(`IA HTTP ${res.status}`)
+        const json = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>
         }
+        return json.choices?.[0]?.message?.content ?? 'Sin respuesta.'
+      }
+
+      throw new Error(
+        'Anthropic Claude desde navegador requiere la app de Escritorio (Tauri) por políticas CORS.'
       )
-      if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`)
-      const json = (await res.json()) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-      }
-      return json.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sin respuesta.'
     }
 
-    if (options.provider === 'openai' || options.provider === 'custom') {
-      const base =
-        options.provider === 'openai'
-          ? 'https://api.openai.com/v1'
-          : (options.baseUrl ?? '').trim().replace(/\/+$/, '')
-      const res = await fetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          ...(options.apiKey.trim() ? { Authorization: `Bearer ${options.apiKey.trim()}` } : {}),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: options.model || 'gpt-4o-mini',
-          messages: options.messages,
-          temperature: 0.4,
-        }),
-      })
-      if (!res.ok) throw new Error(`IA HTTP ${res.status}`)
-      const json = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>
+    try {
+      return await runOnce()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (/503|429|UNAVAILABLE|high demand|Load failed/i.test(msg)) {
+        await new Promise((r) => setTimeout(r, 1200))
+        return await runOnce()
       }
-      return json.choices?.[0]?.message?.content ?? 'Sin respuesta.'
+      throw err
     }
-
-    throw new Error(
-      'Anthropic Claude desde navegador requiere la app de Escritorio (Tauri) por políticas CORS.'
-    )
   },
 }

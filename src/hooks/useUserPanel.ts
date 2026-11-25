@@ -617,6 +617,33 @@ export function useUserPanel(platform: Platform) {
     [platform]
   )
 
+  const listAiModels = useCallback(
+    async (
+      provider: 'openai' | 'anthropic' | 'gemini' | 'custom',
+      apiKey: string,
+      baseUrl?: string,
+      silent = false
+    ): Promise<string[]> => {
+      try {
+        const models = await integrationsBridge.listAiModels(platform, provider, apiKey, baseUrl)
+        if (!silent) {
+          toast.success(
+            models.length > 0
+              ? `${models.length} modelos disponibles en ${provider}.`
+              : `No se encontraron modelos en ${provider}.`
+          )
+        }
+        return models
+      } catch (e) {
+        if (!silent) {
+          toast.error(e instanceof Error ? e.message : String(e))
+        }
+        return []
+      }
+    },
+    [platform]
+  )
+
   const hasDatabaseConfigured = Boolean(vault.neonDatabaseUrl.trim())
 
   return {
@@ -641,5 +668,6 @@ export function useUserPanel(platform: Platform) {
     testResend,
     testR2,
     testAi,
+    listAiModels,
   }
 }

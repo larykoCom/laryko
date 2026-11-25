@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   User,
   Database,
@@ -58,9 +58,13 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
     testResend,
     testR2,
     testAi,
+    listAiModels,
   } = userPanelState ?? internalState
 
   const [activeTab, setActiveTab] = useState<UserPanelTab>(requestedTab ?? 'database')
+  const [aiModelsMap, setAiModelsMap] = useState<Partial<Record<AiProviderId, string[]>>>({})
+  const [loadingModelsFor, setLoadingModelsFor] = useState<AiProviderId | null>(null)
+  const lastFetchedKeyRef = useRef<Partial<Record<AiProviderId, string>>>({})
 
   useEffect(() => {
     if (requestedTab) {
@@ -91,6 +95,93 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
   const updateField = (key: keyof UserIntegrationsVault, value: string) => {
     setDraft((prev) => ({ ...prev, [key]: value }))
   }
+
+  const pickPreferredModel = (provider: AiProviderId, models: string[]): string => {
+    if (models.length === 0) return ''
+    const prefsByProvider: Record<AiProviderId, string[]> = {
+      gemini: ['gemini-3.8-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-pro'],
+      openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
+      anthropic: ['claude-sonnet-4-20250514', 'claude-3-7-sonnet-latest', 'claude-3-5-sonnet-latest'],
+      custom: [],
+    }
+    for (const candidate of prefsByProvider[provider]) {
+      const exact = models.find((m) => m === candidate)
+      if (exact) return exact
+    }
+    return models[0]
+  }
+
+  const loadModelsFor = useCallback(
+    async (provider: AiProviderId, apiKey: string, baseUrl?: string, silent = false) => {
+      const cacheKey = `${provider}:${apiKey.trim()}:${(baseUrl ?? '').trim()}`
+      setLoadingModelsFor(provider)
+      try {
+        const models = await listAiModels(provider, apiKey, baseUrl, silent)
+        if (models.length > 0) {
+          lastFetchedKeyRef.current[provider] = cacheKey
+          setAiModelsMap((prev) => ({ ...prev, [provider]: models }))
+          const modelFieldMap: Record<AiProviderId, keyof UserIntegrationsVault> = {
+            openai: 'openaiModel',
+            anthropic: 'anthropicModel',
+            gemini: 'geminiModel',
+            custom: 'customAiModel',
+          }
+          const field = modelFieldMap[provider]
+          setDraft((prev) => {
+            const current = prev[field]
+            if (!current || !models.includes(current)) {
+              return { ...prev, [field]: pickPreferredModel(provider, models) }
+            }
+            return prev
+          })
+        }
+      } finally {
+        setLoadingModelsFor((cur) => (cur === provider ? null : cur))
+      }
+    },
+    [listAiModels]
+  )
+
+  useEffect(() => {
+    if (!vaultUnlocked || activeTab !== 'ai') return
+    const entries: Array<{
+      provider: AiProviderId
+      apiKey: string
+      baseUrl?: string
+      ready: boolean
+    }> = [
+      { provider: 'openai', apiKey: draft.openaiApiKey, ready: draft.openaiApiKey.trim().length >= 15 },
+      { provider: 'anthropic', apiKey: draft.anthropicApiKey, ready: draft.anthropicApiKey.trim().length >= 15 },
+      { provider: 'gemini', apiKey: draft.geminiApiKey, ready: draft.geminiApiKey.trim().length >= 15 },
+      {
+        provider: 'custom',
+        apiKey: draft.customAiApiKey,
+        baseUrl: draft.customAiBaseUrl,
+        ready: /^https?:\/\/.+/i.test(draft.customAiBaseUrl.trim()),
+      },
+    ]
+
+    const timers: number[] = []
+    for (const item of entries) {
+      if (!item.ready) continue
+      const cacheKey = `${item.provider}:${item.apiKey.trim()}:${(item.baseUrl ?? '').trim()}`
+      if (lastFetchedKeyRef.current[item.provider] === cacheKey) continue
+      const t = window.setTimeout(() => {
+        void loadModelsFor(item.provider, item.apiKey, item.baseUrl, true)
+      }, 650)
+      timers.push(t)
+    }
+    return () => timers.forEach((t) => window.clearTimeout(t))
+  }, [
+    vaultUnlocked,
+    activeTab,
+    draft.openaiApiKey,
+    draft.anthropicApiKey,
+    draft.geminiApiKey,
+    draft.customAiBaseUrl,
+    draft.customAiApiKey,
+    loadModelsFor,
+  ])
 
   if (!vaultUnlocked) {
     return (
@@ -474,11 +565,43 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                   type="button"
                   className={styles.secondaryBtn}
                   disabled={busy || !draft.openaiApiKey.trim()}
-                  onClick={() => testAi('openai', draft.openaiApiKey)}
+                  onClick={() => {
+                    void testAi('openai', draft.openaiApiKey)
+                    void loadModelsFor('openai', draft.openaiApiKey, undefined, true)
+                  }}
                 >
                   Probar
                 </button>
               </div>
+              {draft.openaiApiKey.trim() && (
+                <div className={styles.inlineRow}>
+                  <select
+                    className={styles.input}
+                    value={draft.openaiModel}
+                    onChange={(e) => updateField('openaiModel', e.target.value)}
+                    disabled={loadingModelsFor === 'openai'}
+                  >
+                    {!draft.openaiModel && <option value="">Selecciona un modelo de OpenAI...</option>}
+                    {draft.openaiModel && !(aiModelsMap.openai ?? []).includes(draft.openaiModel) && (
+                      <option value={draft.openaiModel}>{draft.openaiModel}</option>
+                    )}
+                    {(aiModelsMap.openai ?? []).map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={loadingModelsFor === 'openai' || !draft.openaiApiKey.trim()}
+                    onClick={() => void loadModelsFor('openai', draft.openaiApiKey)}
+                    title="Consultar modelos disponibles"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className={styles.fieldGroup}>
@@ -495,11 +618,43 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                   type="button"
                   className={styles.secondaryBtn}
                   disabled={busy || !draft.anthropicApiKey.trim()}
-                  onClick={() => testAi('anthropic', draft.anthropicApiKey)}
+                  onClick={() => {
+                    void testAi('anthropic', draft.anthropicApiKey)
+                    void loadModelsFor('anthropic', draft.anthropicApiKey, undefined, true)
+                  }}
                 >
                   Probar
                 </button>
               </div>
+              {draft.anthropicApiKey.trim() && (
+                <div className={styles.inlineRow}>
+                  <select
+                    className={styles.input}
+                    value={draft.anthropicModel}
+                    onChange={(e) => updateField('anthropicModel', e.target.value)}
+                    disabled={loadingModelsFor === 'anthropic'}
+                  >
+                    {!draft.anthropicModel && <option value="">Selecciona un modelo de Claude...</option>}
+                    {draft.anthropicModel && !(aiModelsMap.anthropic ?? []).includes(draft.anthropicModel) && (
+                      <option value={draft.anthropicModel}>{draft.anthropicModel}</option>
+                    )}
+                    {(aiModelsMap.anthropic ?? []).map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={loadingModelsFor === 'anthropic' || !draft.anthropicApiKey.trim()}
+                    onClick={() => void loadModelsFor('anthropic', draft.anthropicApiKey)}
+                    title="Consultar modelos disponibles"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className={styles.fieldGroup}>
@@ -516,11 +671,43 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                   type="button"
                   className={styles.secondaryBtn}
                   disabled={busy || !draft.geminiApiKey.trim()}
-                  onClick={() => testAi('gemini', draft.geminiApiKey)}
+                  onClick={() => {
+                    void testAi('gemini', draft.geminiApiKey)
+                    void loadModelsFor('gemini', draft.geminiApiKey, undefined, true)
+                  }}
                 >
                   Probar
                 </button>
               </div>
+              {draft.geminiApiKey.trim() && (
+                <div className={styles.inlineRow}>
+                  <select
+                    className={styles.input}
+                    value={draft.geminiModel}
+                    onChange={(e) => updateField('geminiModel', e.target.value)}
+                    disabled={loadingModelsFor === 'gemini'}
+                  >
+                    {!draft.geminiModel && <option value="">Selecciona un modelo de Gemini...</option>}
+                    {draft.geminiModel && !(aiModelsMap.gemini ?? []).includes(draft.geminiModel) && (
+                      <option value={draft.geminiModel}>{draft.geminiModel}</option>
+                    )}
+                    {(aiModelsMap.gemini ?? []).map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={loadingModelsFor === 'gemini' || !draft.geminiApiKey.trim()}
+                    onClick={() => void loadModelsFor('gemini', draft.geminiApiKey)}
+                    title="Consultar modelos disponibles"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className={styles.subCard}>
@@ -538,13 +725,42 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                 </div>
                 <div className={styles.fieldGroup}>
                   <label className={styles.label}>Modelo por defecto</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    placeholder="llama-3.3-70b / deepseek-chat"
-                    value={draft.customAiModel}
-                    onChange={(e) => updateField('customAiModel', e.target.value)}
-                  />
+                  {(aiModelsMap.custom ?? []).length > 0 ? (
+                    <div className={styles.inlineRow}>
+                      <select
+                        className={styles.input}
+                        value={draft.customAiModel}
+                        onChange={(e) => updateField('customAiModel', e.target.value)}
+                      >
+                        {!draft.customAiModel && <option value="">Selecciona un modelo...</option>}
+                        {draft.customAiModel && !(aiModelsMap.custom ?? []).includes(draft.customAiModel) && (
+                          <option value={draft.customAiModel}>{draft.customAiModel}</option>
+                        )}
+                        {(aiModelsMap.custom ?? []).map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className={styles.secondaryBtn}
+                        disabled={loadingModelsFor === 'custom' || !draft.customAiBaseUrl.trim()}
+                        onClick={() => void loadModelsFor('custom', draft.customAiApiKey, draft.customAiBaseUrl)}
+                        title="Consultar modelos disponibles"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="llama-3.3-70b / deepseek-chat"
+                      value={draft.customAiModel}
+                      onChange={(e) => updateField('customAiModel', e.target.value)}
+                    />
+                  )}
                 </div>
               </div>
               <div className={styles.fieldGroup}>
@@ -561,7 +777,10 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                     type="button"
                     className={styles.secondaryBtn}
                     disabled={busy || !draft.customAiBaseUrl.trim()}
-                    onClick={() => testAi('custom', draft.customAiApiKey, draft.customAiBaseUrl)}
+                    onClick={() => {
+                      void testAi('custom', draft.customAiApiKey, draft.customAiBaseUrl)
+                      void loadModelsFor('custom', draft.customAiApiKey, draft.customAiBaseUrl, true)
+                    }}
                   >
                     Probar
                   </button>

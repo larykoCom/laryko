@@ -15,8 +15,11 @@ export interface UserIntegrationsVault {
   dropboxAppKey: string
   aiDefaultProvider: AiProviderId
   openaiApiKey: string
+  openaiModel: string
   anthropicApiKey: string
+  anthropicModel: string
   geminiApiKey: string
+  geminiModel: string
   customAiBaseUrl: string
   customAiApiKey: string
   customAiModel: string
@@ -35,8 +38,11 @@ export const EMPTY_VAULT: UserIntegrationsVault = {
   dropboxAppKey: '',
   aiDefaultProvider: 'openai',
   openaiApiKey: '',
+  openaiModel: '',
   anthropicApiKey: '',
+  anthropicModel: '',
   geminiApiKey: '',
+  geminiModel: '',
   customAiBaseUrl: '',
   customAiApiKey: '',
   customAiModel: '',

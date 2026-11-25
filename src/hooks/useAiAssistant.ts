@@ -37,13 +37,13 @@ function resolveActiveProvider(vault: UserIntegrationsVault): {
   model?: string
 } {
   const map: Record<AiProviderId, { apiKey: string; baseUrl?: string; model?: string }> = {
-    openai: { apiKey: vault.openaiApiKey },
-    anthropic: { apiKey: vault.anthropicApiKey },
-    gemini: { apiKey: vault.geminiApiKey },
+    openai: { apiKey: vault.openaiApiKey, model: vault.openaiModel || undefined },
+    anthropic: { apiKey: vault.anthropicApiKey, model: vault.anthropicModel || undefined },
+    gemini: { apiKey: vault.geminiApiKey, model: vault.geminiModel || undefined },
     custom: {
       apiKey: vault.customAiApiKey,
       baseUrl: vault.customAiBaseUrl,
-      model: vault.customAiModel,
+      model: vault.customAiModel || undefined,
     },
   }
 
@@ -177,12 +177,39 @@ export function useAiAssistant(params: UseAiAssistantParams) {
           },
         ])
       } catch (e) {
+        const localFallback = parseLocalOfflineCommand(text)
+        if (localFallback) {
+          const executed: string[] = []
+          for (const act of localFallback.actions) {
+            executed.push(await params.onExecuteAction(act))
+          }
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `${Date.now()}-a`,
+              role: 'assistant',
+              text: localFallback.reply,
+              executedActions: executed,
+            },
+          ])
+          return
+        }
+
+        const rawMsg = e instanceof Error ? e.message : String(e)
+        const friendlyMsg = /503|UNAVAILABLE|high demand/i.test(rawMsg)
+          ? 'El modelo seleccionado está saturado temporalmente (HTTP 503). Intenta de nuevo en unos segundos o elige otro modelo en Cuenta → Inteligencia Artificial.'
+          : /429|rate limit|quota/i.test(rawMsg)
+            ? 'Límite de peticiones alcanzado (HTTP 429). Espera unos segundos o cambia de modelo en Cuenta → Inteligencia Artificial.'
+            : /Load failed|Failed to fetch|network/i.test(rawMsg)
+              ? 'No se pudo conectar con el proveedor de IA. Verifica tu conexión a internet o prueba otro modelo en Cuenta → Inteligencia Artificial.'
+              : `Error: ${rawMsg}`
+
         setMessages((prev) => [
           ...prev,
           {
             id: `${Date.now()}-e`,
             role: 'assistant',
-            text: `Error: ${e instanceof Error ? e.message : String(e)}`,
+            text: friendlyMsg,
           },
         ])
       } finally {

@@ -565,43 +565,37 @@ async fn test_r2_endpoint(account_id: String, bucket_name: String) -> Result<Str
     Err(format!("Endpoint R2 devolvió HTTP {}.", code))
 }
 
-#[tauri::command]
-async fn test_ai_provider(
-    provider: String,
-    api_key: String,
+fn build_models_request(
+    client: &reqwest::Client,
+    provider: &str,
+    key: &str,
     base_url: Option<String>,
-) -> Result<String, String> {
-    let key = api_key.trim();
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(12))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let req = match provider.as_str() {
+) -> Result<reqwest::RequestBuilder, String> {
+    match provider {
         "openai" => {
             if key.is_empty() {
                 return Err("La API Key de OpenAI es obligatoria.".to_string());
             }
-            client
+            Ok(client
                 .get("https://api.openai.com/v1/models")
-                .bearer_auth(key)
+                .bearer_auth(key))
         }
         "anthropic" => {
             if key.is_empty() {
                 return Err("La API Key de Claude (Anthropic) es obligatoria.".to_string());
             }
-            client
+            Ok(client
                 .get("https://api.anthropic.com/v1/models")
                 .header("x-api-key", key)
-                .header("anthropic-version", "2023-06-01")
+                .header("anthropic-version", "2023-06-01"))
         }
         "gemini" => {
             if key.is_empty() {
                 return Err("La API Key de Google Gemini es obligatoria.".to_string());
             }
-            client
+            Ok(client
                 .get("https://generativelanguage.googleapis.com/v1beta/models")
-                .header("x-goog-api-key", key)
+                .header("x-goog-api-key", key))
         }
         "custom" => {
             let raw_base = base_url.unwrap_or_default();
@@ -616,10 +610,25 @@ async fn test_ai_provider(
             if !key.is_empty() {
                 r = r.bearer_auth(key);
             }
-            r
+            Ok(r)
         }
-        _ => return Err("Proveedor de IA no reconocido.".to_string()),
-    };
+        _ => Err("Proveedor de IA no reconocido.".to_string()),
+    }
+}
+
+#[tauri::command]
+async fn test_ai_provider(
+    provider: String,
+    api_key: String,
+    base_url: Option<String>,
+) -> Result<String, String> {
+    let key = api_key.trim();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let req = build_models_request(&client, provider.as_str(), key, base_url)?;
 
     let res = req
         .send()
@@ -635,10 +644,107 @@ async fn test_ai_provider(
     Ok(format!("Conexión verificada correctamente con {}.", provider))
 }
 
+#[tauri::command]
+async fn list_ai_models(
+    provider: String,
+    api_key: String,
+    base_url: Option<String>,
+) -> Result<Vec<String>, String> {
+    let key = api_key.trim();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let req = build_models_request(&client, provider.as_str(), key, base_url)?;
+    let res = req
+        .send()
+        .await
+        .map_err(|e| format!("Error consultando modelos disponibles: {}", e))?;
+
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(format!("El proveedor respondió HTTP {}: {}", status, text));
+    }
+
+    let json: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("Respuesta JSON inválida: {}", e))?;
+
+    let mut models: Vec<String> = Vec::new();
+    if provider == "gemini" {
+        if let Some(arr) = json.get("models").and_then(|v| v.as_array()) {
+            for item in arr {
+                let supports_gen = item
+                    .get("supportedGenerationMethods")
+                    .and_then(|m| m.as_array())
+                    .map(|methods| {
+                        methods
+                            .iter()
+                            .any(|m| m.as_str() == Some("generateContent"))
+                    })
+                    .unwrap_or(true);
+                if !supports_gen {
+                    continue;
+                }
+                if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                    let clean = name.strip_prefix("models/").unwrap_or(name).trim();
+                    if !clean.is_empty() {
+                        models.push(clean.to_string());
+                    }
+                }
+            }
+        }
+    } else {
+        if let Some(arr) = json.get("data").and_then(|v| v.as_array()) {
+            for item in arr {
+                if let Some(id) = item.get("id").and_then(|v| v.as_str()) {
+                    let clean = id.trim();
+                    if !clean.is_empty() {
+                        models.push(clean.to_string());
+                    }
+                }
+            }
+        } else if let Some(arr) = json.get("models").and_then(|v| v.as_array()) {
+            for item in arr {
+                let name = item
+                    .get("id")
+                    .or_else(|| item.get("name"))
+                    .or_else(|| item.get("model"))
+                    .and_then(|v| v.as_str());
+                if let Some(raw) = name {
+                    let clean = raw.trim();
+                    if !clean.is_empty() {
+                        models.push(clean.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    models.sort();
+    models.dedup();
+    Ok(models)
+}
+
 #[derive(serde::Deserialize)]
 struct AiChatMessageInput {
     role: String,
     content: String,
+}
+
+fn format_reqwest_error(err: &reqwest::Error) -> String {
+    let mut parts = vec![err.to_string()];
+    let mut current: Option<&dyn std::error::Error> = std::error::Error::source(err);
+    while let Some(src) = current {
+        parts.push(src.to_string());
+        current = src.source();
+    }
+    if err.is_timeout() {
+        format!("Tiempo de espera agotado: {}", parts.join(" -> "))
+    } else {
+        parts.join(" -> ")
+    }
 }
 
 #[tauri::command]
@@ -651,7 +757,8 @@ async fn ai_chat_completion(
 ) -> Result<String, String> {
     let key = api_key.trim();
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(45))
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -776,7 +883,7 @@ async fn ai_chat_completion(
             }
             let chosen_model = model
                 .filter(|m| !m.trim().is_empty())
-                .unwrap_or_else(|| "gemini-2.5-flash".to_string());
+                .unwrap_or_else(|| "gemini-3.8-flash".to_string());
             let contents: Vec<serde_json::Value> = non_system
                 .iter()
                 .map(|m| {
@@ -803,7 +910,7 @@ async fn ai_chat_completion(
                 .body(body.to_string())
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| format_reqwest_error(&e))?;
 
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
@@ -981,6 +1088,7 @@ pub fn run() {
             test_resend_connection,
             test_r2_endpoint,
             test_ai_provider,
+            list_ai_models,
             ai_chat_completion,
             send_native_notification
         ])
