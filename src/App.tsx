@@ -6,23 +6,30 @@ import {
   Terminal,
   HelpCircle,
   Zap,
+  Home,
   Calculator as CalculatorIcon,
+  Layers,
   ChevronRight,
   Sparkles,
   Heart,
   ShieldCheck,
   Cpu,
+  Plus,
+  Moon,
+  Lock,
 } from 'lucide-react'
-import { usePlatform, useOnlineStatus, useAppUpdater } from '@/hooks'
+import { usePlatform, useOnlineStatus, useAppUpdater, useMultiSession } from '@/hooks'
 import {
   StatusBadge,
   UpdateModal,
   BottomBar,
   UpdateCircleButton,
   Calculator,
+  MultiSession,
   type ActiveTool,
 } from '@/components'
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
+import { multiSessionBridge } from '@/utils/multiSessionBridge'
 import styles from './App.module.css'
 
 const PLATFORM_ICONS: Record<string, ReactNode> = {
@@ -49,6 +56,10 @@ export function App() {
 
   const [activeTool, setActiveTool] = useState<ActiveTool>('home')
   const [showModal, setShowModal] = useState(false)
+  const multiSession = useMultiSession(appInfo.platform)
+  const [currentSessionUuid, setCurrentSessionUuid] = useState<string | null>(null)
+  const [showSessionManager, setShowSessionManager] = useState(true)
+  const [addFormSignal, setAddFormSignal] = useState(0)
 
   useEffect(() => {
     if (appInfo.platform === 'ios') {
@@ -56,34 +67,216 @@ export function App() {
     }
   }, [appInfo.platform])
 
+  // Ocultar WebViews embebidos si salimos de Multi-Sesión, abrimos un modal o está bloqueado
+  useEffect(() => {
+    if (activeTool !== 'sessions' || showModal || !multiSession.isUnlocked) {
+      multiSessionBridge.hideAllSessions(appInfo.platform).catch(() => {})
+    }
+    if (!multiSession.isUnlocked) {
+      setCurrentSessionUuid(null)
+    }
+  }, [activeTool, showModal, multiSession.isUnlocked, appInfo.platform])
+
   const handleCheckUpdates = async () => {
     triggerNativeHaptic('selection')
     await checkForUpdates()
     setShowModal(true)
   }
 
+  const activeSessionsCount = multiSession.sessions.filter((s) => s.status === 'active').length
+  const showSidebarSubmenu =
+    activeTool === 'sessions' && multiSession.isUnlocked && multiSession.sessions.length > 0
+
   return (
     <div className={styles.app}>
-      {/* ── Barra Superior Fija: Estado y Botón Circular de Actualizaciones ── */}
-      <header className={styles.topBar}>
-        <div className={styles.statusPill}>
-          <span className={styles.platformIcon}>
-            {PLATFORM_ICONS[appInfo.platform] ?? PLATFORM_ICONS.unknown}
-          </span>
-          <span className={styles.platformName}>{appInfo.platform}</span>
-          <span className={styles.statusDivider}>•</span>
-          <StatusBadge isOnline={isOnline} />
+      {/* ── Sidebar de Escritorio (>= 768px) ── */}
+      <aside
+        className={`${styles.desktopSidebar} ${activeTool === 'sessions' ? styles.desktopSidebarCompact : ''}`}
+        aria-label="Navegación principal"
+      >
+        <div className={styles.sidebarTopSection}>
+          <div className={styles.sidebarBrand}>
+            <div className={styles.sidebarBrandIcon}>
+              <Zap size={18} strokeWidth={2.5} />
+            </div>
+            <div className={styles.sidebarBrandText}>
+              <div className={styles.sidebarBrandTitle}>Laryko</div>
+              <div className={styles.sidebarBrandVersion}>v{appInfo.version}</div>
+            </div>
+          </div>
+
+          <nav className={styles.sidebarNav}>
+            <button
+              type="button"
+              className={`${styles.sidebarNavBtn} ${activeTool === 'home' ? styles.sidebarNavBtnActive : ''}`}
+              onClick={() => setActiveTool('home')}
+              title="Inicio"
+              data-tooltip="Inicio"
+            >
+              <Home size={18} strokeWidth={2.2} />
+              <span className={styles.sidebarNavLabel}>Inicio</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.sidebarNavBtn} ${activeTool === 'calculator' ? styles.sidebarNavBtnActive : ''}`}
+              onClick={() => setActiveTool('calculator')}
+              title="Calculadora"
+              data-tooltip="Calculadora"
+            >
+              <CalculatorIcon size={18} strokeWidth={2.2} />
+              <span className={styles.sidebarNavLabel}>Calculadora</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.sidebarNavBtn} ${
+                activeTool === 'sessions' && showSessionManager ? styles.sidebarNavBtnActive : ''
+              }`}
+              onClick={() => {
+                setActiveTool('sessions')
+                setShowSessionManager(true)
+              }}
+              title="Multi-Sesión (Home)"
+              data-tooltip="Multi-Sesión (Home)"
+            >
+              <Layers size={18} strokeWidth={2.2} />
+              <span className={styles.sidebarNavLabel}>Multi-Sesión</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.sidebarNavBtn} ${activeTool === 'thanks' ? styles.sidebarNavBtnActive : ''}`}
+              onClick={() => setActiveTool('thanks')}
+              title="Próximamente"
+              data-tooltip="Próximamente"
+            >
+              <Sparkles size={18} strokeWidth={2.2} />
+              <span className={styles.sidebarNavLabel}>Próximamente</span>
+            </button>
+          </nav>
+
+          {/* ── Sub-items de Multi-Sesión integrados en la misma columna ── */}
+          {showSidebarSubmenu && (
+            <div className={styles.sidebarSessionsSubmenu} aria-label="Accesos rápidos de sesiones">
+              <button
+                type="button"
+                className={styles.sidebarSubBtn}
+                onClick={() => {
+                  setShowSessionManager(true)
+                  setAddFormSignal((n) => n + 1)
+                }}
+                title="Nueva sesión aislada"
+                data-tooltip="Nueva sesión"
+                aria-label="Nueva sesión"
+              >
+                <Plus size={16} />
+              </button>
+
+              {multiSession.sessions.map((session) => {
+                const isActive = session.status === 'active'
+                const isSelected = currentSessionUuid === session.uuid && !showSessionManager
+                return (
+                  <button
+                    key={session.uuid}
+                    type="button"
+                    className={`${styles.sidebarSessionAvatarBtn} ${
+                      isSelected ? styles.sidebarSessionSelected : ''
+                    }`}
+                    style={{ backgroundColor: session.color }}
+                    onClick={() => {
+                      triggerNativeHaptic('selection')
+                      setCurrentSessionUuid(session.uuid)
+                      setShowSessionManager(false)
+                    }}
+                    title={`${session.name} (${isActive ? 'Activa' : 'Dormida'})`}
+                    data-tooltip={`${session.name} · ${isActive ? 'Activa' : 'Dormida'}`}
+                  >
+                    {session.name.slice(0, 2).toUpperCase()}
+                    <span
+                      className={`${styles.sidebarSessionDot} ${
+                        isActive ? styles.sidebarSessionDotActive : styles.sidebarSessionDotSleeping
+                      }`}
+                    />
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
-        <UpdateCircleButton
-          checking={checking}
-          onClick={handleCheckUpdates}
-          hasUpdateAvailable={Boolean(updateInfo)}
-        />
-      </header>
+        <div className={styles.sidebarFooter}>
+          {showSidebarSubmenu && (
+            <div className={styles.sidebarCompactActions}>
+              {activeSessionsCount > 0 && (
+                <button
+                  type="button"
+                  className={styles.sidebarSubBtn}
+                  onClick={async () => {
+                    triggerNativeHaptic('selection')
+                    setCurrentSessionUuid(null)
+                    setShowSessionManager(true)
+                    await multiSession.sleepAllSessions()
+                  }}
+                  title="Dormir todas las sesiones (liberar RAM)"
+                  data-tooltip="Dormir todas"
+                  aria-label="Dormir todas"
+                >
+                  <Moon size={16} />
+                </button>
+              )}
+              <button
+                type="button"
+                className={styles.sidebarSubBtn}
+                onClick={async () => {
+                  triggerNativeHaptic('medium')
+                  setCurrentSessionUuid(null)
+                  await multiSession.lockNow(true)
+                }}
+                title="Bloquear con PIN"
+                data-tooltip="Bloquear PIN"
+                aria-label="Bloquear con PIN"
+              >
+                <Lock size={16} />
+              </button>
+            </div>
+          )}
 
-      {/* ── Contenedor de Vistas / Sub-apps ── */}
-      <main className={styles.container}>
+          <div className={styles.statusPill}>
+            <span className={styles.platformIcon}>
+              {PLATFORM_ICONS[appInfo.platform] ?? PLATFORM_ICONS.unknown}
+            </span>
+            <span className={styles.platformName}>{appInfo.platform}</span>
+            <span className={styles.statusDivider}>•</span>
+            <StatusBadge isOnline={isOnline} />
+          </div>
+
+          <UpdateCircleButton
+            checking={checking}
+            onClick={handleCheckUpdates}
+            hasUpdateAvailable={Boolean(updateInfo)}
+          />
+        </div>
+      </aside>
+
+      <div className={styles.mainShell}>
+        {/* ── Barra Superior Móvil / Ventana Estrecha (< 768px) ── */}
+        <header className={styles.topBar}>
+          <div className={styles.statusPill}>
+            <span className={styles.platformIcon}>
+              {PLATFORM_ICONS[appInfo.platform] ?? PLATFORM_ICONS.unknown}
+            </span>
+            <span className={styles.platformName}>{appInfo.platform}</span>
+            <span className={styles.statusDivider}>•</span>
+            <StatusBadge isOnline={isOnline} />
+          </div>
+
+          <UpdateCircleButton
+            checking={checking}
+            onClick={handleCheckUpdates}
+            hasUpdateAvailable={Boolean(updateInfo)}
+          />
+        </header>
+
+        {/* ── Contenedor de Vistas / Sub-apps ── */}
+        <main className={`${styles.container} ${activeTool === 'sessions' ? styles.containerFull : ''}`}>
         {activeTool === 'home' && (
           <>
             {/* ── Brand Header ── */}
@@ -99,7 +292,7 @@ export function App() {
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <span className={styles.sectionTitle}>Herramientas Disponibles</span>
-                <span className={styles.sectionBadge}>1 activa</span>
+                <span className={styles.sectionBadge}>2 activas</span>
               </div>
 
               <div className={styles.toolsGrid}>
@@ -121,6 +314,32 @@ export function App() {
                       <span className={styles.toolName}>Calculadora Inteligente</span>
                       <span className={styles.toolDesc}>
                         Aritmética rápida, conversión de porcentajes e historial sin conexión.
+                      </span>
+                    </div>
+                  </div>
+                  <span className={styles.toolAction}>
+                    <ChevronRight size={20} strokeWidth={2.2} />
+                  </span>
+                </button>
+
+                {/* Herramienta 2: Multi-Sesión (Contenedores aislados con PIN) */}
+                <button
+                  type="button"
+                  className={styles.toolCard}
+                  onClick={() => {
+                    triggerNativeHaptic('selection')
+                    setActiveTool('sessions')
+                  }}
+                  aria-label="Abrir Multi-Sesión"
+                >
+                  <div className={styles.toolContent}>
+                    <div className={styles.toolIcon}>
+                      <Layers size={24} strokeWidth={2} />
+                    </div>
+                    <div className={styles.toolMeta}>
+                      <span className={styles.toolName}>Multi-Sesión (PIN)</span>
+                      <span className={styles.toolDesc}>
+                        Contenedores aislados multi-cuenta sin Chromium, optimización de RAM y bloqueo por PIN.
                       </span>
                     </div>
                   </div>
@@ -173,6 +392,18 @@ export function App() {
           <Calculator platform={appInfo.platform} />
         )}
 
+        {activeTool === 'sessions' && (
+          <MultiSession
+            platform={appInfo.platform}
+            multiSession={multiSession}
+            currentUuid={currentSessionUuid}
+            onSelectUuid={setCurrentSessionUuid}
+            showManager={showSessionManager}
+            onToggleManager={setShowSessionManager}
+            showAddFormSignal={addFormSignal}
+          />
+        )}
+
         {activeTool === 'thanks' && (
           <div className={styles.thanksWrapper}>
             <div className={styles.thanksIconBadge}>
@@ -219,8 +450,9 @@ export function App() {
           </div>
         )}
       </main>
+      </div>
 
-      {/* ── Barra Inferior Flotante (Liquid Glass Dock) ── */}
+      {/* ── Barra Inferior Flotante (Liquid Glass Dock en Móvil / Ventana estrecha) ── */}
       <BottomBar
         activeTool={activeTool}
         onSelectTool={setActiveTool}

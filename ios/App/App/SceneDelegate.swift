@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import AudioToolbox
+import WebKit
 
 // ============================================================
 // NativeIOSBridge – Puente Nativo Swift para Liquid Glass y Hápticos
@@ -158,12 +159,197 @@ public class NativeIOSBridge: CAPPlugin, CAPBridgedPlugin {
 }
 
 // ============================================================
+// MultiSessionPlugin – Contenedores WKWebView aislados en iOS
+// ============================================================
+@objc(MultiSessionPlugin)
+public class MultiSessionPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "MultiSessionPlugin"
+    public let jsName = "MultiSessionPlugin"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "openSession", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sleepSession", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sleepAllSessions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteSessionData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getActiveSessions", returnType: CAPPluginReturnPromise)
+    ]
+
+    private var activeControllers: [String: SessionWebViewController] = [:]
+
+    @objc func openSession(_ call: CAPPluginCall) {
+        guard let uuidStr = call.getString("uuid"),
+              let urlStr = call.getString("url"),
+              let url = URL(string: urlStr),
+              url.scheme == "https" || url.scheme == "http" else {
+            call.resolve(["success": false])
+            return
+        }
+        let title = call.getString("title") ?? "Sesión"
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let presenter = self.bridge?.viewController else {
+                call.resolve(["success": false])
+                return
+            }
+
+            if let existing = self.activeControllers[uuidStr], existing.presentingViewController != nil {
+                call.resolve(["success": true])
+                return
+            }
+
+            let vc = SessionWebViewController(sessionUuid: uuidStr, sessionTitle: title, initialUrl: url)
+            vc.modalPresentationStyle = .fullScreen
+            vc.onSleep = { [weak self] id in
+                self?.activeControllers.removeValue(forKey: id)
+            }
+            self.activeControllers[uuidStr] = vc
+            presenter.present(vc, animated: true) {
+                call.resolve(["success": true])
+            }
+        }
+    }
+
+    @objc func sleepSession(_ call: CAPPluginCall) {
+        let uuidStr = call.getString("uuid") ?? ""
+        DispatchQueue.main.async { [weak self] in
+            if let vc = self?.activeControllers.removeValue(forKey: uuidStr) {
+                vc.destroyAndDismiss()
+            }
+            call.resolve(["success": true])
+        }
+    }
+
+    @objc func sleepAllSessions(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else {
+                call.resolve(["success": true])
+                return
+            }
+            for (_, vc) in self.activeControllers {
+                vc.destroyAndDismiss()
+            }
+            self.activeControllers.removeAll()
+            call.resolve(["success": true])
+        }
+    }
+
+    @objc func deleteSessionData(_ call: CAPPluginCall) {
+        let uuidStr = call.getString("uuid") ?? ""
+        DispatchQueue.main.async { [weak self] in
+            if let vc = self?.activeControllers.removeValue(forKey: uuidStr) {
+                vc.destroyAndDismiss()
+            }
+            if #available(iOS 17.0, *), let uuid = UUID(uuidString: uuidStr) {
+                WKWebsiteDataStore.remove(forIdentifier: uuid) { _ in
+                    call.resolve(["success": true])
+                }
+            } else {
+                call.resolve(["success": true])
+            }
+        }
+    }
+
+    @objc func getActiveSessions(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            let uuids = Array(self?.activeControllers.keys ?? [:].keys)
+            call.resolve(["uuids": uuids])
+        }
+    }
+}
+
+class SessionWebViewController: UIViewController {
+    private let sessionUuid: String
+    private let sessionTitle: String
+    private let initialUrl: URL
+    private var sessionWebView: WKWebView?
+    var onSleep: ((String) -> Void)?
+
+    init(sessionUuid: String, sessionTitle: String, initialUrl: URL) {
+        self.sessionUuid = sessionUuid
+        self.sessionTitle = sessionTitle
+        self.initialUrl = initialUrl
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not supported")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+
+        let navBar = UINavigationBar()
+        navBar.translatesAutoresizingMaskIntoConstraints = false
+        let navItem = UINavigationItem(title: sessionTitle)
+        navItem.leftBarButtonItem = UIBarButtonItem(title: "Dormir 💤", style: .done, target: self, action: #selector(handleSleep))
+        navItem.rightBarButtonItems = [
+            UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(handleReload)),
+            UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(handleBack))
+        ]
+        navBar.setItems([navItem], animated: false)
+
+        let config = WKWebViewConfiguration()
+        if #available(iOS 17.0, *), let uuid = UUID(uuidString: sessionUuid) {
+            config.websiteDataStore = WKWebsiteDataStore(forIdentifier: uuid)
+        } else {
+            config.websiteDataStore = .nonPersistent()
+        }
+
+        let wv = WKWebView(frame: .zero, configuration: config)
+        wv.translatesAutoresizingMaskIntoConstraints = false
+        wv.allowsBackForwardNavigationGestures = true
+        self.sessionWebView = wv
+
+        view.addSubview(navBar)
+        view.addSubview(wv)
+
+        NSLayoutConstraint.activate([
+            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            navBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            wv.topAnchor.constraint(equalTo: navBar.bottomAnchor),
+            wv.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            wv.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            wv.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        wv.load(URLRequest(url: initialUrl))
+    }
+
+    @objc private func handleBack() {
+        if sessionWebView?.canGoBack == true {
+            sessionWebView?.goBack()
+        }
+    }
+
+    @objc private func handleReload() {
+        sessionWebView?.reload()
+    }
+
+    @objc private func handleSleep() {
+        destroyAndDismiss()
+    }
+
+    func destroyAndDismiss() {
+        sessionWebView?.stopLoading()
+        sessionWebView?.removeFromSuperview()
+        sessionWebView = nil
+        onSleep?(sessionUuid)
+        if presentingViewController != nil {
+            dismiss(animated: true)
+        }
+    }
+}
+
+// ============================================================
 // MainViewController – Controlador raíz con Liquid Glass UITabBar Nativo
 // ============================================================
 class MainViewController: CAPBridgeViewController, UITabBarDelegate {
     private let nativeTabBar = UITabBar()
     private var homeTabItem: UITabBarItem!
     private var calcTabItem: UITabBarItem!
+    private var sessionsTabItem: UITabBarItem!
     private var thanksTabItem: UITabBarItem!
 
     override open func viewDidLoad() {
@@ -176,6 +362,7 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(NativeIOSBridge())
+        bridge?.registerPluginInstance(MultiSessionPlugin())
         webView?.backgroundColor = UIColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1.0)
         webView?.scrollView.backgroundColor = UIColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1.0)
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
@@ -210,14 +397,21 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         )
         calcTabItem.tag = 1
 
+        sessionsTabItem = UITabBarItem(
+            title: "Sesiones",
+            image: UIImage(systemName: "square.stack.3d.up"),
+            selectedImage: UIImage(systemName: "square.stack.3d.up.fill")
+        )
+        sessionsTabItem.tag = 2
+
         thanksTabItem = UITabBarItem(
             title: "Thanks",
             image: UIImage(systemName: "sparkles"),
             selectedImage: UIImage(systemName: "sparkles")
         )
-        thanksTabItem.tag = 2
+        thanksTabItem.tag = 3
 
-        nativeTabBar.items = [homeTabItem, calcTabItem, thanksTabItem]
+        nativeTabBar.items = [homeTabItem, calcTabItem, sessionsTabItem, thanksTabItem]
         nativeTabBar.selectedItem = homeTabItem
 
         view.addSubview(nativeTabBar)
@@ -233,7 +427,8 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         let tab: String
         switch item.tag {
         case 1: tab = "calculator"
-        case 2: tab = "thanks"
+        case 2: tab = "sessions"
+        case 3: tab = "thanks"
         default: tab = "home"
         }
         let script = "window.dispatchEvent(new CustomEvent('larykoNativeTabSelected', { detail: { tab: '\(tab)' } }))"
@@ -245,6 +440,8 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
             nativeTabBar.selectedItem = homeTabItem
         } else if tab == "calculator" {
             nativeTabBar.selectedItem = calcTabItem
+        } else if tab == "sessions" {
+            nativeTabBar.selectedItem = sessionsTabItem
         } else if tab == "thanks" {
             nativeTabBar.selectedItem = thanksTabItem
         }

@@ -17,6 +17,12 @@
   pointer-events: none;
 }
 
+@media (min-width: 768px) {
+  .bottomBarWrapper {
+    display: none;
+  }
+}
+
 .bottomBar {
   pointer-events: auto;
   position: relative;
@@ -30,7 +36,7 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  --tab-count: 3;
+  --tab-count: 4;
 }
 
 /* ── Indicador Deslizante Liquid Glass Nativo (Fluid Sliding Capsule) ── */
@@ -39,7 +45,7 @@
   top: 5px;
   bottom: 5px;
   left: 6px;
-  width: calc((100% - 12px - (var(--tab-count, 3) - 1) * 6px) / var(--tab-count, 3));
+  width: calc((100% - 12px - (var(--tab-count, 4) - 1) * 6px) / var(--tab-count, 4));
   border-radius: var(--radius-full);
   background: radial-gradient(
     circle at 50% -10%,
