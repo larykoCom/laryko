@@ -17,6 +17,7 @@ import {
   QrCode,
   RefreshCw,
   Bot,
+  Trash2,
 } from 'lucide-react'
 import { useUserPanel } from '@/hooks/useUserPanel'
 import { EMPTY_VAULT, type AiProviderId, type UserIntegrationsVault } from '@/utils/vaultCrypto'
@@ -41,6 +42,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
   const {
     hasVaultSetup,
     hasDatabaseConfigured,
+    hasResendConfigured,
     vaultUnlocked,
     vault,
     prefs,
@@ -52,16 +54,20 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
     savePrefs,
     testNeon,
     syncUpToNeon,
-    syncDownFromNeon,
     generatePairingCode,
     importPairingCode,
     testResend,
     testR2,
     testAi,
     listAiModels,
+    registerAccount,
+    loginWithAccount,
+    deleteCloudAccount,
+    wipeAllLocalData,
   } = userPanelState ?? internalState
 
-  const [activeTab, setActiveTab] = useState<UserPanelTab>(requestedTab ?? 'database')
+  const [activeTab, setActiveTab] = useState<UserPanelTab>(requestedTab ?? 'sync')
+  const [confirmDanger, setConfirmDanger] = useState<'cloud' | 'wipe' | 'wipe-all' | null>(null)
   const [aiModelsMap, setAiModelsMap] = useState<Partial<Record<AiProviderId, string[]>>>({})
   const [loadingModelsFor, setLoadingModelsFor] = useState<AiProviderId | null>(null)
   const lastFetchedKeyRef = useRef<Partial<Record<AiProviderId, string>>>({})
@@ -71,21 +77,45 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
       setActiveTab(requestedTab)
     }
   }, [requestedTab])
-  const [unlockMode, setUnlockMode] = useState<'vault' | 'code' | 'neon'>('vault')
+  const [unlockMode, setUnlockMode] = useState<'vault' | 'code'>('vault')
+  const [showDbLoginInSync, setShowDbLoginInSync] = useState(false)
   const [masterInput, setMasterInput] = useState('')
+  const [loginNeonUrl, setLoginNeonUrl] = useState('')
+  const [loginIdentifier, setLoginIdentifier] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [regUsername, setRegUsername] = useState('')
+  const [regEmail, setRegEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
   const [draft, setDraft] = useState<UserIntegrationsVault>(EMPTY_VAULT)
-  const [showSecrets, setShowSecrets] = useState(false)
+  const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
+  const toggleSecret = (key: string) =>
+    setVisibleSecrets((prev) => ({ ...prev, [key]: !prev[key] }))
+  const renderEyeBtn = (key: string) => (
+    <button
+      type="button"
+      className={styles.secondaryBtn}
+      onClick={() => toggleSecret(key)}
+      title={visibleSecrets[key] ? 'Ocultar clave' : 'Mostrar clave'}
+      aria-label={visibleSecrets[key] ? 'Ocultar clave' : 'Mostrar clave'}
+    >
+      {visibleSecrets[key] ? <EyeOff size={15} /> : <Eye size={15} />}
+    </button>
+  )
   const [testToEmail, setTestToEmail] = useState('')
   const [pairingCode, setPairingCode] = useState<string | null>(null)
   const [importToken, setImportToken] = useState('')
   const [importPass, setImportPass] = useState('')
-  const [pullNeonUrl, setPullNeonUrl] = useState('')
-  const [pullMasterPass, setPullMasterPass] = useState('')
   const [displayNameDraft, setDisplayNameDraft] = useState(prefs.displayName)
   const customAudio = useLiveQuery(() => db.customAudio.get(1), [])
 
   useEffect(() => {
     setDraft(vault)
+    if (vault.accountUsername && !regUsername) setRegUsername(vault.accountUsername)
+    if (vault.accountEmail && !regEmail) {
+      setRegEmail(vault.accountEmail)
+    } else if (vault.resendToEmail && !regEmail) {
+      setRegEmail(vault.resendToEmail)
+    }
   }, [vault])
 
   useEffect(() => {
@@ -195,7 +225,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
           </h2>
           <p className={styles.subtitle}>
             {hasVaultSetup
-              ? 'Ingresa tu clave maestra para ver, editar o sincronizar tus integraciones (Neon, Resend, R2, Drive, Dropbox).'
+              ? 'Ingresa tu clave maestra para acceder a tus integraciones, base de datos y sincronización.'
               : 'Todas tus API keys y cadenas de conexión se cifran localmente con AES-GCM-256 antes de guardarse o sincronizarse.'}
           </p>
 
@@ -216,21 +246,14 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               className={`${styles.unlockModeBtn} ${unlockMode === 'vault' ? styles.unlockModeBtnActive : ''}`}
               onClick={() => setUnlockMode('vault')}
             >
-              {hasVaultSetup ? 'Desbloquear' : 'Crear Bóveda'}
+              {hasVaultSetup ? 'Desbloquear' : 'Configurar Nuevo'}
             </button>
             <button
               type="button"
               className={`${styles.unlockModeBtn} ${unlockMode === 'code' ? styles.unlockModeBtnActive : ''}`}
               onClick={() => setUnlockMode('code')}
             >
-              Código Sync
-            </button>
-            <button
-              type="button"
-              className={`${styles.unlockModeBtn} ${unlockMode === 'neon' ? styles.unlockModeBtnActive : ''}`}
-              onClick={() => setUnlockMode('neon')}
-            >
-              Desde Neon
+              Sync QR / Cuenta
             </button>
           </div>
 
@@ -256,7 +279,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               />
               <button type="submit" className={styles.primaryBtn} disabled={busy}>
                 <Unlock size={16} />
-                <span>{hasVaultSetup ? 'Desbloquear Bóveda' : 'Crear y Desbloquear'}</span>
+                <span>{hasVaultSetup ? 'Desbloquear Bóveda' : 'Crear Bóveda y Configurar'}</span>
               </button>
             </form>
           )}
@@ -265,8 +288,11 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             <div className={styles.importBox}>
               <h3 className={styles.sectionHeading}>
                 <QrCode size={16} />
-                <span>Importar Código de Sincronización</span>
+                <span>Sincronizar con Código QR / Token</span>
               </h3>
+              <p className={styles.hint}>
+                Pega el código <code>LARYKO-SYNC:1:...</code> generado desde tu otro dispositivo e ingresa la clave maestra.
+              </p>
               <textarea
                 className={styles.textarea}
                 rows={3}
@@ -290,38 +316,66 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                 <Download size={15} />
                 <span>Importar y Aplicar en este Dispositivo</span>
               </button>
-            </div>
-          )}
 
-          {unlockMode === 'neon' && (
-            <div className={styles.importBox}>
-              <h3 className={styles.sectionHeading}>
-                <Database size={16} />
-                <span>Recuperar desde Neon Postgres</span>
-              </h3>
-              <input
-                type="password"
-                className={styles.input}
-                placeholder="postgres://usuario:clave@ep-xxx.neon.tech/neondb"
-                value={pullNeonUrl}
-                onChange={(e) => setPullNeonUrl(e.target.value)}
-              />
-              <input
-                type="password"
-                className={styles.input}
-                placeholder="Clave maestra de la bóveda"
-                value={pullMasterPass}
-                onChange={(e) => setPullMasterPass(e.target.value)}
-              />
               <button
                 type="button"
-                className={styles.primaryBtn}
-                disabled={busy || !pullNeonUrl.trim() || !pullMasterPass.trim()}
-                onClick={() => syncDownFromNeon(pullNeonUrl, pullMasterPass)}
+                className={styles.secondaryBtn}
+                onClick={() => setShowDbLoginInSync((prev) => !prev)}
               >
-                <RefreshCw size={15} />
-                <span>Descargar Bóveda desde Neon</span>
+                <User size={14} />
+                <span>
+                  {showDbLoginInSync
+                    ? 'Ocultar acceso por Base de Datos'
+                    : '¿No tienes el código? Iniciar sesión desde Base de Datos'}
+                </span>
               </button>
+
+              {showDbLoginInSync && (
+                <form
+                  className={styles.unlockForm}
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    const ok = await loginWithAccount({
+                      databaseUrl: loginNeonUrl,
+                      identifier: loginIdentifier,
+                      password: loginPassword,
+                    })
+                    if (ok) {
+                      triggerNativeHaptic('success')
+                      setLoginPassword('')
+                    }
+                  }}
+                >
+                  <input
+                    type="password"
+                    className={styles.input}
+                    placeholder="URL de Base de Datos (postgresql://...)"
+                    value={loginNeonUrl}
+                    onChange={(e) => setLoginNeonUrl(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="Usuario o correo electrónico"
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="password"
+                    className={styles.input}
+                    placeholder="Contraseña de tu cuenta"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                  />
+                  <button type="submit" className={styles.primaryBtn} disabled={busy}>
+                    <Unlock size={15} />
+                    <span>Iniciar Sesión y Sincronizar</span>
+                  </button>
+                </form>
+              )}
             </div>
           )}
         </div>
@@ -355,15 +409,6 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
           <button
             type="button"
             className={styles.secondaryBtn}
-            onClick={() => setShowSecrets((v) => !v)}
-            title="Mostrar/ocultar claves"
-          >
-            {showSecrets ? <EyeOff size={15} /> : <Eye size={15} />}
-            <span>{showSecrets ? 'Ocultar' : 'Ver claves'}</span>
-          </button>
-          <button
-            type="button"
-            className={styles.secondaryBtn}
             onClick={lockVault}
             title="Bloquear bóveda"
           >
@@ -373,8 +418,16 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
         </div>
       </div>
 
-      {/* ── Navegación por Secciones (Base de Datos primero como requisito) ── */}
+      {/* ── Navegación por Secciones (Mi Perfil primero) ── */}
       <div className={styles.tabsRow}>
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${activeTab === 'sync' ? styles.tabBtnActive : ''}`}
+          onClick={() => setActiveTab('sync')}
+        >
+          <User size={15} />
+          <span>Mi Perfil & Sync</span>
+        </button>
         <button
           type="button"
           className={`${styles.tabBtn} ${activeTab === 'database' ? styles.tabBtnActive : ''}`}
@@ -382,14 +435,6 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
         >
           <Database size={15} />
           <span>Base de Datos {hasDatabaseConfigured ? '✓' : '*'}</span>
-        </button>
-        <button
-          type="button"
-          className={`${styles.tabBtn} ${activeTab === 'sync' ? styles.tabBtnActive : ''}`}
-          onClick={() => setActiveTab('sync')}
-        >
-          <QrCode size={15} />
-          <span>Perfil & Sync</span>
         </button>
         <button
           type="button"
@@ -429,22 +474,39 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
       <div className={styles.card}>
         {activeTab === 'sync' && (
           <div className={styles.sectionBody}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label}>Nombre del Perfil / Workspace</label>
-              <div className={styles.inlineRow}>
-                <input
-                  type="text"
-                  className={styles.input}
-                  value={displayNameDraft}
-                  onChange={(e) => setDisplayNameDraft(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  onClick={() => savePrefs({ displayName: displayNameDraft.trim() || 'Usuario Laryko' })}
-                >
-                  Guardar
-                </button>
+            <div className={styles.subCard}>
+              <h3 className={styles.sectionHeading}>
+                <User size={16} />
+                <span>Mi Perfil Local</span>
+              </h3>
+              <p className={styles.hint}>
+                Estado actual:{' '}
+                <strong>
+                  {hasDatabaseConfigured
+                    ? vault.accountEmail
+                      ? `Sincronizado (@${vault.accountUsername} · ${vault.accountEmail})`
+                      : 'Base de Datos conectada (listo para sincronizar)'
+                    : 'Perfil Local en este dispositivo (sin base de datos)'}
+                </strong>
+              </p>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>Nombre del Perfil / Workspace</label>
+                <div className={styles.inlineRow}>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="Tu nombre o alias"
+                    value={displayNameDraft}
+                    onChange={(e) => setDisplayNameDraft(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    onClick={() => savePrefs({ displayName: displayNameDraft.trim() || 'Usuario Laryko' })}
+                  >
+                    Guardar Perfil
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -456,7 +518,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               {!hasDatabaseConfigured ? (
                 <>
                   <p className={styles.hint}>
-                    <strong>Requisito obligatorio:</strong> Configura primero tu base de datos <strong>Neon Postgres</strong> en la pestaña <em>Base de Datos</em>. Todas tus preferencias, claves y sesiones se guardarán cifradas allí para sincronizarse en todas las plataformas.
+                    <strong>Paso 1 obligatorio:</strong> Configura primero tu <strong>Base de Datos</strong> (Neon Postgres, Supabase, PostgreSQL u otro proveedor compatible) en la pestaña <em>Base de Datos</em>. Todas tus preferencias, claves y sesiones se guardarán cifradas allí.
                   </p>
                   <div className={styles.actionsRow}>
                     <button
@@ -472,7 +534,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               ) : (
                 <>
                   <p className={styles.hint}>
-                    Todas tus preferencias, claves de IA, integraciones y sesiones se sincronizan cifradas (AES-GCM-256) con Neon Postgres y pueden vincularse en otro dispositivo mediante código.
+                    Todas tus preferencias, claves de IA, integraciones y sesiones se sincronizan cifradas (AES-GCM-256) con tu Base de Datos y pueden vincularse en otro dispositivo mediante Código / QR.
                   </p>
 
                   <div className={styles.actionsRow}>
@@ -483,7 +545,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                       onClick={() => syncUpToNeon(draft)}
                     >
                       <Upload size={15} />
-                      <span>Sincronizar Todo a Neon</span>
+                      <span>Sincronizar Todo a Base de Datos</span>
                     </button>
 
                     <button
@@ -516,6 +578,192 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                     <Copy size={14} />
                     <span>Copiar Código Cifrado</span>
                   </button>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.subCard}>
+              <h3 className={styles.sectionHeading}>
+                <User size={16} />
+                <span>Cuenta Adicional para Sincronizar (Usuario y Contraseña)</span>
+              </h3>
+              <p className={styles.hint}>
+                <strong>Recomendación:</strong> Usa el <strong>mismo correo electrónico</strong> para tu cuenta de Laryko, tu proveedor de Base de Datos y Resend (por ejemplo, el correo con el que te registraste en Resend) para evitar problemas de envío o permisos entre dispositivos.
+              </p>
+
+              {!hasDatabaseConfigured ? (
+                <>
+                  <p className={styles.hint}>
+                    <strong>Primero configura tu Base de Datos:</strong> Para poder crear tu cuenta y guardar tus credenciales, configura primero Neon, Supabase, PostgreSQL u otro proveedor en la pestaña <em>Base de Datos</em>.
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      onClick={() => setActiveTab('database')}
+                    >
+                      <Database size={15} />
+                      <span>Ir a Base de Datos</span>
+                    </button>
+                    {!hasResendConfigured && (
+                      <button
+                        type="button"
+                        className={styles.secondaryBtn}
+                        onClick={() => setActiveTab('email')}
+                      >
+                        <Mail size={15} />
+                        <span>Configurar Resend (opcional)</span>
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {vault.accountEmail && (
+                    <p className={styles.hint}>
+                      Cuenta activa vinculada: <strong>@{vault.accountUsername}</strong> ({vault.accountEmail}). Puedes iniciar sesión con estas credenciales en cualquier otro dispositivo.
+                    </p>
+                  )}
+                  <div className={styles.grid2}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.label}>Usuario</label>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        placeholder="ej. larico"
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.label}>Correo electrónico (mismo de Resend)</label>
+                      <input
+                        type="email"
+                        className={styles.input}
+                        placeholder="tucorreo@gmail.com"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label}>
+                      {vault.accountEmail ? 'Nueva contraseña (para actualizar o re-cifrar cuenta)' : 'Contraseña de cuenta (mín. 6 caracteres)'}
+                    </label>
+                    <input
+                      type="password"
+                      className={styles.input}
+                      placeholder="Mínimo 6 caracteres"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      disabled={busy || !regUsername.trim() || !regEmail.trim() || regPassword.length < 6}
+                      onClick={async () => {
+                        const ok = await registerAccount({
+                          username: regUsername,
+                          email: regEmail,
+                          password: regPassword,
+                          targetVault: draft,
+                        })
+                        if (ok) setRegPassword('')
+                      }}
+                    >
+                      <User size={15} />
+                      <span>{vault.accountEmail ? 'Actualizar Cuenta en Base de Datos' : 'Crear Cuenta y Guardar en Base de Datos'}</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className={styles.subCard}>
+              <h3 className={styles.sectionHeading}>
+                <Trash2 size={16} />
+                <span>Gestión de Cuenta y Borrado de Datos</span>
+              </h3>
+              <p className={styles.hint}>
+                Puedes eliminar tu cuenta remota de la Base de Datos o borrar por completo todos los datos locales de Laryko en este dispositivo (bóveda, sesiones, recordatorios e historial).
+              </p>
+
+              {confirmDanger ? (
+                <div className={styles.importBox}>
+                  <p className={styles.hint}>
+                    <strong>
+                      {confirmDanger === 'cloud'
+                        ? '¿Seguro que deseas eliminar tu cuenta y bóveda de la Base de Datos?'
+                        : confirmDanger === 'wipe-all'
+                          ? '¿Seguro que deseas eliminar tu cuenta en la Base de Datos Y borrar todos los datos locales?'
+                          : '¿Seguro que deseas borrar TODOS los datos locales de Laryko en este dispositivo?'}
+                    </strong>{' '}
+                    Esta acción no se puede deshacer.
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      disabled={busy}
+                      onClick={async () => {
+                        if (confirmDanger === 'cloud') {
+                          await deleteCloudAccount()
+                        } else if (confirmDanger === 'wipe-all') {
+                          await wipeAllLocalData(true)
+                        } else {
+                          await wipeAllLocalData(false)
+                        }
+                        setConfirmDanger(null)
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      <span>Confirmar Eliminación</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      disabled={busy}
+                      onClick={() => setConfirmDanger(null)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.actionsRow}>
+                  {hasDatabaseConfigured && (
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      disabled={busy}
+                      onClick={() => setConfirmDanger('cloud')}
+                    >
+                      <Trash2 size={14} />
+                      <span>Eliminar Cuenta de Base de Datos</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={busy}
+                    onClick={() => setConfirmDanger('wipe')}
+                  >
+                    <Trash2 size={14} />
+                    <span>Borrar Todo (Local)</span>
+                  </button>
+                  {hasDatabaseConfigured && (
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      disabled={busy}
+                      onClick={() => setConfirmDanger('wipe-all')}
+                    >
+                      <Trash2 size={14} />
+                      <span>Borrar Todo (Local + Nube)</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -555,12 +803,13 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               <label className={styles.label}>OpenAI API Key</label>
               <div className={styles.inlineRow}>
                 <input
-                  type={showSecrets ? 'text' : 'password'}
+                  type={visibleSecrets.openai ? 'text' : 'password'}
                   className={styles.input}
                   placeholder="sk-proj-..."
                   value={draft.openaiApiKey}
                   onChange={(e) => updateField('openaiApiKey', e.target.value)}
                 />
+                {renderEyeBtn('openai')}
                 <button
                   type="button"
                   className={styles.secondaryBtn}
@@ -608,12 +857,13 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               <label className={styles.label}>Claude (Anthropic) API Key</label>
               <div className={styles.inlineRow}>
                 <input
-                  type={showSecrets ? 'text' : 'password'}
+                  type={visibleSecrets.anthropic ? 'text' : 'password'}
                   className={styles.input}
                   placeholder="sk-ant-api03-..."
                   value={draft.anthropicApiKey}
                   onChange={(e) => updateField('anthropicApiKey', e.target.value)}
                 />
+                {renderEyeBtn('anthropic')}
                 <button
                   type="button"
                   className={styles.secondaryBtn}
@@ -661,12 +911,13 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               <label className={styles.label}>Google Gemini API Key</label>
               <div className={styles.inlineRow}>
                 <input
-                  type={showSecrets ? 'text' : 'password'}
+                  type={visibleSecrets.gemini ? 'text' : 'password'}
                   className={styles.input}
                   placeholder="AIzaSy..."
                   value={draft.geminiApiKey}
                   onChange={(e) => updateField('geminiApiKey', e.target.value)}
                 />
+                {renderEyeBtn('gemini')}
                 <button
                   type="button"
                   className={styles.secondaryBtn}
@@ -767,12 +1018,13 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                 <label className={styles.label}>API Key (opcional para Ollama local)</label>
                 <div className={styles.inlineRow}>
                   <input
-                    type={showSecrets ? 'text' : 'password'}
+                    type={visibleSecrets.custom ? 'text' : 'password'}
                     className={styles.input}
                     placeholder="Token del proveedor personalizado"
                     value={draft.customAiApiKey}
                     onChange={(e) => updateField('customAiApiKey', e.target.value)}
                   />
+                  {renderEyeBtn('custom')}
                   <button
                     type="button"
                     className={styles.secondaryBtn}
@@ -805,21 +1057,27 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
           <div className={styles.sectionBody}>
             <h3 className={styles.sectionHeading}>
               <Database size={16} />
-              <span>Base de Datos (Requisito Mandatorio para Sincronización)</span>
+              <span>Base de Datos (Neon, Supabase, PostgreSQL u otro proveedor)</span>
             </h3>
             <p className={styles.hint}>
-              Sin una base de datos cloud configurada, Laryko funciona solo en modo local (IndexedDB). Al conectar tu <strong>Neon Serverless Postgres</strong>, todas tus settings, preferencias, claves y sesiones se guardarán y sincronizarán automáticamente en macOS, Windows, Linux, iOS, Android y Web.
+              Sin una base de datos cloud configurada, Laryko funciona solo en modo local (IndexedDB). Al conectar tu proveedor de base de datos (<strong>Neon Postgres</strong>, <strong>Supabase</strong>, <strong>PostgreSQL</strong> u otro compatible), todas tus settings, preferencias, claves, cuenta y sesiones se guardarán y sincronizarán automáticamente en macOS, Windows, Linux, iOS, Android y Web.
+            </p>
+            <p className={styles.hint}>
+              <strong>Recomendación:</strong> Utiliza el <strong>mismo correo electrónico</strong> en tu proveedor de Base de Datos, Resend y tu cuenta de Laryko para evitar inconvenientes al sincronizar o enviar alertas.
             </p>
 
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Connection String (postgresql://...)</label>
-              <input
-                type={showSecrets ? 'text' : 'password'}
-                className={styles.input}
-                placeholder="postgresql://user:pass@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require"
-                value={draft.neonDatabaseUrl}
-                onChange={(e) => updateField('neonDatabaseUrl', e.target.value)}
-              />
+              <div className={styles.inlineRow}>
+                <input
+                  type={visibleSecrets.neon ? 'text' : 'password'}
+                  className={styles.input}
+                  placeholder="postgresql://user:pass@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require"
+                  value={draft.neonDatabaseUrl}
+                  onChange={(e) => updateField('neonDatabaseUrl', e.target.value)}
+                />
+                {renderEyeBtn('neon')}
+              </div>
             </div>
 
             <div className={styles.actionsRow}>
@@ -859,18 +1117,21 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               <span>Resend (Correo de Recordatorios & Alertas)</span>
             </h3>
             <p className={styles.hint}>
-              Si no tienes dominio propio, deja <code>Laryko &lt;onboarding@resend.dev&gt;</code> como remitente y coloca tu correo personal (Gmail/Outlook registrado en Resend) como destinatario.
+              Si no tienes dominio propio, deja <code>Laryko &lt;onboarding@resend.dev&gt;</code> como remitente y coloca tu correo personal (Gmail/Outlook registrado en Resend) como destinatario. <strong>Recomendación:</strong> Usa ese mismo correo en toda tu cuenta de Laryko para no tener problemas de verificación o envío.
             </p>
 
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Resend API Key</label>
-              <input
-                type={showSecrets ? 'text' : 'password'}
-                className={styles.input}
-                placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
-                value={draft.resendApiKey}
-                onChange={(e) => updateField('resendApiKey', e.target.value)}
-              />
+              <div className={styles.inlineRow}>
+                <input
+                  type={visibleSecrets.resend ? 'text' : 'password'}
+                  className={styles.input}
+                  placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={draft.resendApiKey}
+                  onChange={(e) => updateField('resendApiKey', e.target.value)}
+                />
+                {renderEyeBtn('resend')}
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
@@ -958,23 +1219,29 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               </div>
               <div className={styles.fieldGroup}>
                 <label className={styles.label}>Access Key ID</label>
-                <input
-                  type={showSecrets ? 'text' : 'password'}
-                  className={styles.input}
-                  placeholder="R2 Access Key ID"
-                  value={draft.r2AccessKeyId}
-                  onChange={(e) => updateField('r2AccessKeyId', e.target.value)}
-                />
+                <div className={styles.inlineRow}>
+                  <input
+                    type={visibleSecrets.r2Access ? 'text' : 'password'}
+                    className={styles.input}
+                    placeholder="R2 Access Key ID"
+                    value={draft.r2AccessKeyId}
+                    onChange={(e) => updateField('r2AccessKeyId', e.target.value)}
+                  />
+                  {renderEyeBtn('r2Access')}
+                </div>
               </div>
               <div className={styles.fieldGroup}>
                 <label className={styles.label}>Secret Access Key</label>
-                <input
-                  type={showSecrets ? 'text' : 'password'}
-                  className={styles.input}
-                  placeholder="R2 Secret Access Key"
-                  value={draft.r2SecretAccessKey}
-                  onChange={(e) => updateField('r2SecretAccessKey', e.target.value)}
-                />
+                <div className={styles.inlineRow}>
+                  <input
+                    type={visibleSecrets.r2Secret ? 'text' : 'password'}
+                    className={styles.input}
+                    placeholder="R2 Secret Access Key"
+                    value={draft.r2SecretAccessKey}
+                    onChange={(e) => updateField('r2SecretAccessKey', e.target.value)}
+                  />
+                  {renderEyeBtn('r2Secret')}
+                </div>
               </div>
             </div>
 

@@ -460,6 +460,116 @@ async fn pull_vault_from_neon(database_url: String) -> Result<Option<String>, St
     Ok(payload)
 }
 
+#[derive(serde::Serialize)]
+struct NeonAccountRecord {
+    username: String,
+    email: String,
+    password_salt: String,
+    password_hash: String,
+    encrypted_vault: String,
+}
+
+#[tauri::command]
+async fn register_neon_account(
+    database_url: String,
+    username: String,
+    email: String,
+    password_salt: String,
+    password_hash: String,
+    encrypted_vault: String,
+) -> Result<String, String> {
+    let clean_user = username.trim().to_string();
+    let clean_email = email.trim().to_lowercase();
+    if clean_user.is_empty() || clean_email.is_empty() {
+        return Err("Usuario y correo son obligatorios.".to_string());
+    }
+
+    execute_neon_sql(
+        &database_url,
+        "CREATE TABLE IF NOT EXISTS laryko_accounts (id SERIAL PRIMARY KEY, username TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, encrypted_vault TEXT NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW());",
+        vec![],
+    )
+    .await?;
+
+    execute_neon_sql(
+        &database_url,
+        "INSERT INTO laryko_accounts (username, email, password_salt, password_hash, encrypted_vault, updated_at) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (email) DO UPDATE SET username = EXCLUDED.username, password_salt = EXCLUDED.password_salt, password_hash = EXCLUDED.password_hash, encrypted_vault = EXCLUDED.encrypted_vault, updated_at = NOW();",
+        vec![
+            serde_json::Value::String(clean_user),
+            serde_json::Value::String(clean_email),
+            serde_json::Value::String(password_salt),
+            serde_json::Value::String(password_hash),
+            serde_json::Value::String(encrypted_vault),
+        ],
+    )
+    .await?;
+
+    Ok("Cuenta guardada de forma segura en Neon Postgres.".to_string())
+}
+
+#[tauri::command]
+async fn fetch_neon_account(
+    database_url: String,
+    identifier: String,
+) -> Result<Option<NeonAccountRecord>, String> {
+    let clean = identifier.trim().to_string();
+    if clean.is_empty() {
+        return Err("Ingresa tu usuario o correo electrónico.".to_string());
+    }
+
+    let json = execute_neon_sql(
+        &database_url,
+        "SELECT username, email, password_salt, password_hash, encrypted_vault FROM laryko_accounts WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1) LIMIT 1;",
+        vec![serde_json::Value::String(clean)],
+    )
+    .await?;
+
+    let row = json
+        .get("rows")
+        .and_then(|rows| rows.as_array())
+        .and_then(|arr| arr.first());
+
+    match row {
+        Some(r) => {
+            let username = r.get("username").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let email = r.get("email").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let password_salt = r.get("password_salt").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let password_hash = r.get("password_hash").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let encrypted_vault = r.get("encrypted_vault").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            if email.is_empty() || password_hash.is_empty() || encrypted_vault.is_empty() {
+                return Ok(None);
+            }
+            Ok(Some(NeonAccountRecord {
+                username,
+                email,
+                password_salt,
+                password_hash,
+                encrypted_vault,
+            }))
+        }
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+async fn delete_neon_account(database_url: String, email: Option<String>) -> Result<String, String> {
+    if let Some(clean_email) = email.map(|e| e.trim().to_lowercase()).filter(|e| !e.is_empty()) {
+        let _ = execute_neon_sql(
+            &database_url,
+            "DELETE FROM laryko_accounts WHERE LOWER(email) = LOWER($1);",
+            vec![serde_json::Value::String(clean_email)],
+        )
+        .await;
+    }
+    let _ = execute_neon_sql(
+        &database_url,
+        "DELETE FROM laryko_vault WHERE id = 1;",
+        vec![],
+    )
+    .await;
+    Ok("Cuenta y bóveda eliminadas de la base de datos.".to_string())
+}
+
 #[tauri::command]
 async fn send_resend_email(
     api_key: String,
@@ -1084,6 +1194,9 @@ pub fn run() {
             test_neon_connection,
             sync_vault_to_neon,
             pull_vault_from_neon,
+            register_neon_account,
+            fetch_neon_account,
+            delete_neon_account,
             send_resend_email,
             test_resend_connection,
             test_r2_endpoint,

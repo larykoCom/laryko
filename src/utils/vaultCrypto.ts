@@ -23,6 +23,8 @@ export interface UserIntegrationsVault {
   customAiBaseUrl: string
   customAiApiKey: string
   customAiModel: string
+  accountUsername: string
+  accountEmail: string
 }
 
 export const EMPTY_VAULT: UserIntegrationsVault = {
@@ -46,6 +48,8 @@ export const EMPTY_VAULT: UserIntegrationsVault = {
   customAiBaseUrl: '',
   customAiApiKey: '',
   customAiModel: '',
+  accountUsername: '',
+  accountEmail: '',
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -271,4 +275,51 @@ export function decodePairingToken(token: string): EncryptedVaultEnvelope | null
   } catch {
     return null
   }
+}
+
+export async function hashAccountPassword(
+  password: string,
+  existingSaltBase64?: string
+): Promise<{ salt: string; hash: string }> {
+  const saltBytes = existingSaltBase64
+    ? fromBase64(existingSaltBase64)
+    : crypto.getRandomValues(new Uint8Array(16))
+
+  const baseKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  )
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltBytes as BufferSource,
+      iterations: VAULT_PBKDF2_ITERATIONS,
+      hash: 'SHA-256',
+    },
+    baseKey,
+    256
+  )
+
+  return {
+    salt: toBase64(saltBytes),
+    hash: toBase64(new Uint8Array(bits)),
+  }
+}
+
+export async function verifyAccountPassword(
+  password: string,
+  saltBase64: string,
+  expectedHashBase64: string
+): Promise<boolean> {
+  const { hash } = await hashAccountPassword(password, saltBase64)
+  if (hash.length !== expectedHashBase64.length) return false
+  let diff = 0
+  for (let i = 0; i < hash.length; i++) {
+    diff |= hash.charCodeAt(i) ^ expectedHashBase64.charCodeAt(i)
+  }
+  return diff === 0
 }

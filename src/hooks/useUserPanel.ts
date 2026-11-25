@@ -9,6 +9,8 @@ import {
   encodePairingToken,
   encryptSyncBundle,
   encryptVault,
+  hashAccountPassword,
+  verifyAccountPassword,
   type EncryptedVaultEnvelope,
   type FullSyncBundle,
   type UserIntegrationsVault,
@@ -644,11 +646,205 @@ export function useUserPanel(platform: Platform) {
     [platform]
   )
 
+  const registerAccount = useCallback(
+    async (params: {
+      username: string
+      email: string
+      password: string
+      targetVault?: UserIntegrationsVault
+    }): Promise<boolean> => {
+      const activeVault = params.targetVault ?? vault
+      if (!activeVault.neonDatabaseUrl.trim()) {
+        toast.error('Primero debes configurar y guardar tu Base de Datos (Neon, Supabase, PostgreSQL u otro).')
+        return false
+      }
+      const cleanUser = params.username.trim()
+      const cleanEmail = params.email.trim().toLowerCase()
+      if (!cleanUser || !cleanEmail.includes('@')) {
+        toast.error('Ingresa un usuario y un correo electrónico válido.')
+        return false
+      }
+      if (params.password.length < 6) {
+        toast.error('La contraseña de la cuenta debe tener al menos 6 caracteres.')
+        return false
+      }
+      if (!vaultUnlocked || !passphrase) return false
+
+      setBusy(true)
+      try {
+        const { salt, hash } = await hashAccountPassword(params.password)
+        const nextVault: UserIntegrationsVault = {
+          ...activeVault,
+          accountUsername: cleanUser,
+          accountEmail: cleanEmail,
+        }
+        const currentPrefs = (await db.userPrefs.get(1)) ?? DEFAULT_PREFS
+        const nextPrefs: UserPreferences = {
+          ...currentPrefs,
+          displayName:
+            currentPrefs.displayName === 'Usuario Laryko' ? cleanUser : currentPrefs.displayName,
+          pendingSync: false,
+          lastSyncAt: new Date(),
+          updatedAt: new Date(),
+        }
+        const bundle = await buildFullBundle(nextVault, nextPrefs)
+        const syncEnvelope = await encryptSyncBundle(bundle, params.password)
+        await integrationsBridge.registerNeonAccount(platform, {
+          databaseUrl: nextVault.neonDatabaseUrl,
+          username: cleanUser,
+          email: cleanEmail,
+          passwordSalt: salt,
+          passwordHash: hash,
+          encryptedVault: JSON.stringify(syncEnvelope),
+        })
+
+        // Guardar bóveda local cifrada con passphrase actual y preferencias
+        const localEnvelope = await encryptVault(nextVault, passphrase)
+        await db.userVault.put({
+          id: 1,
+          salt: localEnvelope.salt,
+          iv: localEnvelope.iv,
+          ciphertext: localEnvelope.ciphertext,
+          updatedAt: new Date(),
+        })
+        await db.userPrefs.put(nextPrefs)
+        setVault(nextVault)
+
+        toast.success(`Cuenta "${cleanUser}" creada y guardada en Neon Postgres.`)
+        return true
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Error creando la cuenta en la base de datos.')
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [vault, vaultUnlocked, passphrase, platform, buildFullBundle]
+  )
+
+  const loginWithAccount = useCallback(
+    async (params: {
+      databaseUrl: string
+      identifier: string
+      password: string
+    }): Promise<boolean> => {
+      if (!params.databaseUrl.trim() || !params.identifier.trim() || !params.password) {
+        toast.error('Completa la URL de Neon, tu usuario/correo y tu contraseña.')
+        return false
+      }
+      setBusy(true)
+      setStatusMessage(null)
+      try {
+        const account = await integrationsBridge.fetchNeonAccount(
+          platform,
+          params.databaseUrl.trim(),
+          params.identifier.trim()
+        )
+        if (!account) {
+          toast.error('No se encontró ninguna cuenta con ese usuario o correo en Neon Postgres.')
+          return false
+        }
+        const valid = await verifyAccountPassword(
+          params.password,
+          account.password_salt,
+          account.password_hash
+        )
+        if (!valid) {
+          toast.error('Contraseña incorrecta para esta cuenta.')
+          return false
+        }
+        const envelope = JSON.parse(account.encrypted_vault) as EncryptedVaultEnvelope
+        const bundle = await decryptSyncBundle(envelope, params.password)
+        await applyFullBundle(bundle, envelope, params.password)
+        toast.success(`Sesión iniciada como ${account.username} (${account.email}).`)
+        return true
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'No se pudo iniciar sesión con esa cuenta.')
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [platform, applyFullBundle]
+  )
+
+  const deleteCloudAccount = useCallback(async (): Promise<boolean> => {
+    if (!vault.neonDatabaseUrl.trim()) {
+      toast.error('No hay ninguna base de datos configurada.')
+      return false
+    }
+    setBusy(true)
+    try {
+      await integrationsBridge.deleteNeonAccount(
+        platform,
+        vault.neonDatabaseUrl,
+        vault.accountEmail || undefined
+      )
+      const nextVault: UserIntegrationsVault = {
+        ...vault,
+        accountUsername: '',
+        accountEmail: '',
+      }
+      if (vaultUnlocked && passphrase) {
+        const envelope = await encryptVault(nextVault, passphrase)
+        await db.userVault.put({
+          id: 1,
+          salt: envelope.salt,
+          iv: envelope.iv,
+          ciphertext: envelope.ciphertext,
+          updatedAt: new Date(),
+        })
+      }
+      setVault(nextVault)
+      await db.userPrefs.update(1, { lastSyncAt: null, pendingSync: false })
+      toast.success('Cuenta y bóveda eliminadas de la Base de Datos.')
+      return true
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error eliminando la cuenta en la base de datos.')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }, [vault, vaultUnlocked, passphrase, platform])
+
+  const wipeAllLocalData = useCallback(
+    async (alsoDeleteCloud = false): Promise<boolean> => {
+      setBusy(true)
+      try {
+        if (alsoDeleteCloud && vault.neonDatabaseUrl.trim()) {
+          await integrationsBridge
+            .deleteNeonAccount(platform, vault.neonDatabaseUrl, vault.accountEmail || undefined)
+            .catch(() => {})
+        }
+        await Promise.all(db.tables.map((t) => t.clear()))
+        await db.userPrefs.put(DEFAULT_PREFS)
+        setVault(EMPTY_VAULT)
+        setPassphrase('')
+        setVaultUnlocked(false)
+        setStatusMessageState(null)
+        toast.success(
+          alsoDeleteCloud
+            ? 'Se eliminaron la cuenta en la nube y todos los datos locales.'
+            : 'Se borraron todos los datos locales de Laryko.'
+        )
+        return true
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Error borrando los datos locales.')
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [vault, platform]
+  )
+
   const hasDatabaseConfigured = Boolean(vault.neonDatabaseUrl.trim())
+  const hasResendConfigured = Boolean(vault.resendApiKey.trim() && vault.resendToEmail.trim())
 
   return {
     hasVaultSetup,
     hasDatabaseConfigured,
+    hasResendConfigured,
     vaultUnlocked,
     vault,
     prefs,
@@ -669,5 +865,9 @@ export function useUserPanel(platform: Platform) {
     testR2,
     testAi,
     listAiModels,
+    registerAccount,
+    loginWithAccount,
+    deleteCloudAccount,
+    wipeAllLocalData,
   }
 }

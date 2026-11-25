@@ -8,6 +8,24 @@ function isTauri(platform: Platform): boolean {
   )
 }
 
+async function executeNeonSqlWeb(
+  databaseUrl: string,
+  query: string,
+  queryParams: unknown[] = []
+): Promise<Record<string, unknown>> {
+  const parsed = new URL(databaseUrl.trim())
+  const res = await fetch(`https://${parsed.hostname}/sql`, {
+    method: 'POST',
+    headers: {
+      'Neon-Connection-String': databaseUrl.trim(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, params: queryParams }),
+  })
+  if (!res.ok) throw new Error(`Neon HTTP ${res.status}`)
+  return (await res.json()) as Record<string, unknown>
+}
+
 export const integrationsBridge = {
   async testNeonConnection(platform: Platform, databaseUrl: string): Promise<string> {
     if (isTauri(platform)) {
@@ -82,6 +100,100 @@ export const integrationsBridge = {
     if (!res.ok) throw new Error(`Neon HTTP ${res.status}`)
     const data = (await res.json()) as { rows?: Array<{ payload?: string }> }
     return data.rows?.[0]?.payload ?? null
+  },
+
+  async registerNeonAccount(
+    platform: Platform,
+    params: {
+      databaseUrl: string
+      username: string
+      email: string
+      passwordSalt: string
+      passwordHash: string
+      encryptedVault: string
+    }
+  ): Promise<string> {
+    if (isTauri(platform)) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return invoke<string>('register_neon_account', params)
+    }
+
+    await executeNeonSqlWeb(
+      params.databaseUrl,
+      'CREATE TABLE IF NOT EXISTS laryko_accounts (id SERIAL PRIMARY KEY, username TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, encrypted_vault TEXT NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW());'
+    )
+    await executeNeonSqlWeb(
+      params.databaseUrl,
+      'INSERT INTO laryko_accounts (username, email, password_salt, password_hash, encrypted_vault, updated_at) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (email) DO UPDATE SET username = EXCLUDED.username, password_salt = EXCLUDED.password_salt, password_hash = EXCLUDED.password_hash, encrypted_vault = EXCLUDED.encrypted_vault, updated_at = NOW();',
+      [
+        params.username.trim(),
+        params.email.trim().toLowerCase(),
+        params.passwordSalt,
+        params.passwordHash,
+        params.encryptedVault,
+      ]
+    )
+    return 'Cuenta guardada de forma segura en Neon Postgres.'
+  },
+
+  async fetchNeonAccount(
+    platform: Platform,
+    databaseUrl: string,
+    identifier: string
+  ): Promise<{
+    username: string
+    email: string
+    password_salt: string
+    password_hash: string
+    encrypted_vault: string
+  } | null> {
+    if (isTauri(platform)) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return invoke('fetch_neon_account', { databaseUrl, identifier })
+    }
+
+    const data = (await executeNeonSqlWeb(
+      databaseUrl,
+      'SELECT username, email, password_salt, password_hash, encrypted_vault FROM laryko_accounts WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1) LIMIT 1;',
+      [identifier.trim()]
+    )) as {
+      rows?: Array<{
+        username?: string
+        email?: string
+        password_salt?: string
+        password_hash?: string
+        encrypted_vault?: string
+      }>
+    }
+    const row = data.rows?.[0]
+    if (!row?.email || !row.password_hash || !row.encrypted_vault) return null
+    return {
+      username: row.username ?? '',
+      email: row.email,
+      password_salt: row.password_salt ?? '',
+      password_hash: row.password_hash,
+      encrypted_vault: row.encrypted_vault,
+    }
+  },
+
+  async deleteNeonAccount(
+    platform: Platform,
+    databaseUrl: string,
+    email?: string
+  ): Promise<string> {
+    if (isTauri(platform)) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return invoke<string>('delete_neon_account', { databaseUrl, email })
+    }
+    if (email?.trim()) {
+      await executeNeonSqlWeb(
+        databaseUrl,
+        'DELETE FROM laryko_accounts WHERE LOWER(email) = LOWER($1);',
+        [email.trim().toLowerCase()]
+      ).catch(() => {})
+    }
+    await executeNeonSqlWeb(databaseUrl, 'DELETE FROM laryko_vault WHERE id = 1;').catch(() => {})
+    return 'Cuenta y bóveda eliminadas de la base de datos.'
   },
 
   async sendResendEmail(
