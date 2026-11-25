@@ -9,6 +9,7 @@ import {
   verifyPinHash,
 } from '@/utils/pinCrypto'
 import { multiSessionBridge, type SessionBounds } from '@/utils/multiSessionBridge'
+import { toast } from '@/utils/toast'
 import type { Platform } from '@/types'
 
 const MAX_FAILED_ATTEMPTS = 5
@@ -41,7 +42,12 @@ export function useMultiSession(platform: Platform) {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [pinError, setPinError] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNoticeState] = useState<string | null>(null)
+
+  const setNotice = useCallback((msg: string | null) => {
+    setNoticeState(msg)
+    if (msg) toast.warning(msg)
+  }, [])
 
   const hasPinSetup = Boolean(pinConfig?.hash)
   const lockedUntil = pinConfig?.lockedUntil ?? null

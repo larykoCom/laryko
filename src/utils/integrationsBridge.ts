@@ -84,16 +84,25 @@ export const integrationsBridge = {
     return data.rows?.[0]?.payload ?? null
   },
 
-  async testResendConnection(
+  async sendResendEmail(
     platform: Platform,
     apiKey: string,
     fromEmail: string,
-    toEmail: string
+    toEmail: string,
+    subject: string,
+    html: string
   ): Promise<string> {
     if (isTauri(platform)) {
       const { invoke } = await import('@tauri-apps/api/core')
-      return invoke<string>('test_resend_connection', { apiKey, fromEmail, toEmail })
+      return invoke<string>('send_resend_email', {
+        apiKey,
+        fromEmail,
+        toEmail,
+        subject,
+        html,
+      })
     }
+    const from = fromEmail.trim() || 'Laryko <onboarding@resend.dev>'
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -101,16 +110,32 @@ export const integrationsBridge = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: fromEmail.trim(),
+        from,
         to: [toEmail.trim()],
-        subject: 'Laryko — Prueba de conexión Resend',
-        html: '<p>Tu integración de <strong>Resend</strong> en Laryko está funcionando correctamente.</p>',
+        subject,
+        html,
       }),
     })
     if (!res.ok) {
       throw new Error(`Resend respondió HTTP ${res.status}`)
     }
-    return 'Correo de prueba enviado correctamente con Resend.'
+    return 'Correo enviado correctamente con Resend.'
+  },
+
+  async testResendConnection(
+    platform: Platform,
+    apiKey: string,
+    fromEmail: string,
+    toEmail: string
+  ): Promise<string> {
+    return this.sendResendEmail(
+      platform,
+      apiKey,
+      fromEmail,
+      toEmail,
+      'Laryko — Prueba de conexión Resend',
+      '<p>Tu integración de <strong>Resend</strong> en Laryko está funcionando correctamente.</p>'
+    )
   },
 
   async testR2Endpoint(
@@ -123,5 +148,96 @@ export const integrationsBridge = {
       return invoke<string>('test_r2_endpoint', { accountId, bucketName })
     }
     return 'Configuración R2 guardada (la verificación TLS directa está disponible en Escritorio).'
+  },
+
+  async testAiProvider(
+    platform: Platform,
+    provider: 'openai' | 'anthropic' | 'gemini' | 'custom',
+    apiKey: string,
+    baseUrl?: string
+  ): Promise<string> {
+    if (isTauri(platform)) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return invoke<string>('test_ai_provider', { provider, apiKey, baseUrl })
+    }
+    return 'API Key guardada en bóveda cifrada (la prueba directa sin CORS está disponible en Escritorio).'
+  },
+
+  async aiChatCompletion(
+    platform: Platform,
+    options: {
+      provider: 'openai' | 'anthropic' | 'gemini' | 'custom'
+      apiKey: string
+      messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+      baseUrl?: string
+      model?: string
+    }
+  ): Promise<string> {
+    if (isTauri(platform)) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return invoke<string>('ai_chat_completion', options)
+    }
+
+    // Fallback HTTP para Web/Móvil (OpenAI / Gemini / Custom)
+    if (options.provider === 'gemini') {
+      const model = options.model || 'gemini-2.5-flash'
+      const systemText = options.messages
+        .filter((m) => m.role === 'system')
+        .map((m) => m.content)
+        .join('\n')
+      const contents = options.messages
+        .filter((m) => m.role !== 'system')
+        .map((m) => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        }))
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'x-goog-api-key': options.apiKey.trim(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemText }] },
+            contents,
+          }),
+        }
+      )
+      if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`)
+      const json = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      }
+      return json.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sin respuesta.'
+    }
+
+    if (options.provider === 'openai' || options.provider === 'custom') {
+      const base =
+        options.provider === 'openai'
+          ? 'https://api.openai.com/v1'
+          : (options.baseUrl ?? '').trim().replace(/\/+$/, '')
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          ...(options.apiKey.trim() ? { Authorization: `Bearer ${options.apiKey.trim()}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: options.model || 'gpt-4o-mini',
+          messages: options.messages,
+          temperature: 0.4,
+        }),
+      })
+      if (!res.ok) throw new Error(`IA HTTP ${res.status}`)
+      const json = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>
+      }
+      return json.choices?.[0]?.message?.content ?? 'Sin respuesta.'
+    }
+
+    throw new Error(
+      'Anthropic Claude desde navegador requiere la app de Escritorio (Tauri) por políticas CORS.'
+    )
   },
 }

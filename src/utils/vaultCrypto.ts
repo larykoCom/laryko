@@ -1,27 +1,45 @@
 const VAULT_PBKDF2_ITERATIONS = 100_000
 
+export type AiProviderId = 'openai' | 'anthropic' | 'gemini' | 'custom'
+
 export interface UserIntegrationsVault {
   neonDatabaseUrl: string
   resendApiKey: string
   resendFromEmail: string
+  resendToEmail: string
   r2AccountId: string
   r2AccessKeyId: string
   r2SecretAccessKey: string
   r2BucketName: string
   googleDriveClientId: string
   dropboxAppKey: string
+  aiDefaultProvider: AiProviderId
+  openaiApiKey: string
+  anthropicApiKey: string
+  geminiApiKey: string
+  customAiBaseUrl: string
+  customAiApiKey: string
+  customAiModel: string
 }
 
 export const EMPTY_VAULT: UserIntegrationsVault = {
   neonDatabaseUrl: '',
   resendApiKey: '',
-  resendFromEmail: '',
+  resendFromEmail: 'Laryko <onboarding@resend.dev>',
+  resendToEmail: '',
   r2AccountId: '',
   r2AccessKeyId: '',
   r2SecretAccessKey: '',
   r2BucketName: '',
   googleDriveClientId: '',
   dropboxAppKey: '',
+  aiDefaultProvider: 'openai',
+  openaiApiKey: '',
+  anthropicApiKey: '',
+  geminiApiKey: '',
+  customAiBaseUrl: '',
+  customAiApiKey: '',
+  customAiModel: '',
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -114,6 +132,117 @@ export async function decryptVault(
 
   const parsed = JSON.parse(new TextDecoder().decode(decrypted)) as Partial<UserIntegrationsVault>
   return { ...EMPTY_VAULT, ...parsed }
+}
+
+export interface SyncedPreferences {
+  displayName: string
+  idleSleepMinutes: number
+  autoSync: boolean
+}
+
+export interface SyncedSessionGroup {
+  id?: number
+  name: string
+  color: string
+  order: number
+}
+
+export interface SyncedWebSession {
+  uuid: string
+  groupId: number
+  name: string
+  url: string
+  color: string
+  order?: number
+}
+
+export interface SyncedReminder {
+  uuid: string
+  title: string
+  notes: string
+  dueAt: string
+  completed: boolean
+  notifyNative: boolean
+  notifyEmail: boolean
+  persistent?: boolean
+  isAlarm?: boolean
+  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'
+  recurrenceInterval?: number
+  recurrenceUnit?: 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years'
+  soundPreset?: string
+  updatedAt: string
+}
+
+export interface FullSyncBundle {
+  v: 2
+  updatedAtMs?: number
+  vault: UserIntegrationsVault
+  prefs?: SyncedPreferences
+  sessionGroups?: SyncedSessionGroup[]
+  sessions?: SyncedWebSession[]
+  reminders?: SyncedReminder[]
+}
+
+export async function encryptSyncBundle(
+  bundle: FullSyncBundle,
+  passphrase: string
+): Promise<EncryptedVaultEnvelope> {
+  const salt = new Uint8Array(16)
+  const iv = new Uint8Array(12)
+  crypto.getRandomValues(salt)
+  crypto.getRandomValues(iv)
+
+  const key = await deriveAesKey(passphrase, salt)
+  const plaintext = new TextEncoder().encode(JSON.stringify(bundle))
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer },
+    key,
+    plaintext
+  )
+
+  return {
+    v: 1,
+    salt: toBase64(salt),
+    iv: toBase64(iv),
+    ciphertext: toBase64(new Uint8Array(encrypted)),
+  }
+}
+
+export async function decryptSyncBundle(
+  envelope: EncryptedVaultEnvelope,
+  passphrase: string
+): Promise<FullSyncBundle> {
+  const salt = fromBase64(envelope.salt)
+  const iv = fromBase64(envelope.iv)
+  const ciphertext = fromBase64(envelope.ciphertext)
+
+  const key = await deriveAesKey(passphrase, salt)
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer },
+    key,
+    ciphertext.buffer as ArrayBuffer
+  )
+
+  const raw = JSON.parse(new TextDecoder().decode(decrypted)) as
+    | Partial<FullSyncBundle>
+    | Partial<UserIntegrationsVault>
+
+  if ('v' in raw && raw.v === 2 && raw.vault) {
+    return {
+      v: 2,
+      updatedAtMs: raw.updatedAtMs,
+      vault: { ...EMPTY_VAULT, ...raw.vault },
+      prefs: raw.prefs,
+      sessionGroups: raw.sessionGroups,
+      sessions: raw.sessions,
+      reminders: raw.reminders,
+    }
+  }
+
+  return {
+    v: 2,
+    vault: { ...EMPTY_VAULT, ...(raw as Partial<UserIntegrationsVault>) },
+  }
 }
 
 export function encodePairingToken(envelope: EncryptedVaultEnvelope): string {

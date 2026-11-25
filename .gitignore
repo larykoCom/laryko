@@ -44,3 +44,7 @@ android/app/src/main/assets/public/
 # TypeScript
 *.tsbuildinfo
 .vercel
+
+# Graphify temporary cache/sidecars
+graphify-out/cache/
+graphify-out/.graphify_*

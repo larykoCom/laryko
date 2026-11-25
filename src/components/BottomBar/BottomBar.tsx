@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Home, Calculator as CalculatorIcon, Layers, Sparkles } from 'lucide-react'
+import { Home, Calculator as CalculatorIcon, Layers, Bell, Sparkles } from 'lucide-react'
 import { GlassEffectContainer } from '@/components/GlassEffectContainer'
 import { triggerNativeHaptic, NativeIOSBridge } from '@/utils/nativeIOSBridge'
 import type { Platform } from '@/types'
 import styles from './BottomBar.module.css'
 
-export type ActiveTool = 'home' | 'calculator' | 'sessions' | 'account' | 'thanks'
+export type ActiveTool = 'home' | 'calculator' | 'sessions' | 'reminders' | 'account' | 'thanks'
 
 export interface NavItemConfig {
   id: ActiveTool
@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItemConfig[] = [
   { id: 'home', label: 'Inicio', icon: <Home size={20} strokeWidth={2.2} /> },
   { id: 'calculator', label: 'Calculadora', icon: <CalculatorIcon size={20} strokeWidth={2.2} /> },
   { id: 'sessions', label: 'Sesiones', icon: <Layers size={20} strokeWidth={2.2} /> },
+  { id: 'reminders', label: 'Agenda', icon: <Bell size={20} strokeWidth={2.2} /> },
   { id: 'thanks', label: 'Thanks', icon: <Sparkles size={20} strokeWidth={2.2} />, badge: 'Pronto' },
 ]
 

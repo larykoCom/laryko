@@ -1,0 +1,121 @@
+.viewport {
+  position: fixed;
+  top: max(env(safe-area-inset-top, 12px), 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 120;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .viewport {
+    top: 16px;
+    right: 20px;
+    left: auto;
+    transform: none;
+    width: 380px;
+  }
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-primary);
+  animation: toastIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.success {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.success .icon {
+  color: var(--color-success);
+}
+
+.error {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.error .icon {
+  color: var(--color-danger);
+}
+
+.warning {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.warning .icon {
+  color: var(--color-warning);
+}
+
+.info {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.info .icon {
+  color: var(--color-accent);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.actionBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.closeBtn:hover {
+  color: var(--color-text-primary);
+}

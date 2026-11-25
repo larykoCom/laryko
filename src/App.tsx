@@ -18,8 +18,17 @@ import {
   Moon,
   Lock,
   User,
+  Bell,
 } from 'lucide-react'
-import { usePlatform, useOnlineStatus, useAppUpdater, useMultiSession } from '@/hooks'
+import {
+  usePlatform,
+  useOnlineStatus,
+  useAppUpdater,
+  useMultiSession,
+  useUserPanel,
+  useNotificationsCenter,
+  useReminders,
+} from '@/hooks'
 import {
   StatusBadge,
   UpdateModal,
@@ -28,10 +37,16 @@ import {
   Calculator,
   MultiSession,
   UserPanel,
+  Reminders,
+  NotificationsCenter,
+  AlarmOverlay,
+  AiAssistant,
+  GlobalToast,
   type ActiveTool,
 } from '@/components'
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import { multiSessionBridge } from '@/utils/multiSessionBridge'
+import type { LarykoAiAction } from '@/utils/aiAssistantActions'
 import styles from './App.module.css'
 
 const PLATFORM_ICONS: Record<string, ReactNode> = {
@@ -58,7 +73,17 @@ export function App() {
 
   const [activeTool, setActiveTool] = useState<ActiveTool>('home')
   const [showModal, setShowModal] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showAiAssistant, setShowAiAssistant] = useState(false)
+  const [accountTab, setAccountTab] = useState<'database' | 'ai' | null>(null)
   const multiSession = useMultiSession(appInfo.platform)
+  const userPanel = useUserPanel(appInfo.platform)
+  const remindersState = useReminders(
+    appInfo.platform,
+    userPanel.vault,
+    userPanel.bidirectionalSync
+  )
+  const { unreadCount } = useNotificationsCenter()
   const [currentSessionUuid, setCurrentSessionUuid] = useState<string | null>(null)
   const [showSessionManager, setShowSessionManager] = useState(true)
   const [addFormSignal, setAddFormSignal] = useState(0)
@@ -71,13 +96,65 @@ export function App() {
 
   // Ocultar WebViews embebidos si salimos de Multi-Sesión, abrimos un modal o está bloqueado
   useEffect(() => {
-    if (activeTool !== 'sessions' || showModal || !multiSession.isUnlocked) {
+    if (
+      activeTool !== 'sessions' ||
+      showModal ||
+      showNotifications ||
+      showAiAssistant ||
+      remindersState.activeAlarm ||
+      !multiSession.isUnlocked
+    ) {
       multiSessionBridge.hideAllSessions(appInfo.platform).catch(() => {})
     }
     if (!multiSession.isUnlocked) {
       setCurrentSessionUuid(null)
     }
-  }, [activeTool, showModal, multiSession.isUnlocked, appInfo.platform])
+  }, [
+    activeTool,
+    showModal,
+    showNotifications,
+    showAiAssistant,
+    remindersState.activeAlarm,
+    multiSession.isUnlocked,
+    appInfo.platform,
+  ])
+
+  const executeAiAction = async (action: LarykoAiAction): Promise<string> => {
+    switch (action.type) {
+      case 'navigate':
+        if (action.tool === 'sessions') setShowSessionManager(true)
+        setActiveTool(action.tool)
+        return `Navegado a ${action.tool}`
+      case 'open_notifications':
+        setShowNotifications(true)
+        return 'Notificaciones abiertas'
+      case 'sleep_all_sessions':
+        setCurrentSessionUuid(null)
+        await multiSession.sleepAllSessions()
+        return 'Sesiones dormidas'
+      case 'sync_neon':
+        await userPanel.bidirectionalSync()
+        return 'Sincronización ejecutada'
+      case 'test_alert':
+        await remindersState.testNativeAlert()
+        return 'Alerta de prueba enviada'
+      case 'create_reminder': {
+        const due = new Date(Date.now() + (action.minutesFromNow ?? 10) * 60_000)
+        await remindersState.addReminder({
+          title: action.title,
+          notes: action.notes ?? '',
+          dueAt: due,
+          notifyNative: true,
+          notifyEmail: false,
+          persistent: Boolean(action.persistent),
+          isAlarm: Boolean(action.isAlarm),
+          recurrence: action.recurrence ?? 'none',
+          soundPreset: 'default',
+        })
+        return `${action.isAlarm ? 'Alarma' : 'Recordatorio'} creado`
+      }
+    }
+  }
 
   const handleCheckUpdates = async () => {
     triggerNativeHaptic('selection')
@@ -142,6 +219,16 @@ export function App() {
             >
               <Layers size={18} strokeWidth={2.2} />
               <span className={styles.sidebarNavLabel}>Multi-Sesión</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.sidebarNavBtn} ${activeTool === 'reminders' ? styles.sidebarNavBtnActive : ''}`}
+              onClick={() => setActiveTool('reminders')}
+              title="Agenda y Recordatorios"
+              data-tooltip="Agenda"
+            >
+              <Bell size={18} strokeWidth={2.2} />
+              <span className={styles.sidebarNavLabel}>Agenda</span>
             </button>
             <button
               type="button"
@@ -267,6 +354,24 @@ export function App() {
               <User size={16} strokeWidth={2.2} />
             </button>
 
+            <button
+              type="button"
+              className={`${styles.accountCircleBtn} ${
+                showNotifications ? styles.accountCircleBtnActive : ''
+              }`}
+              onClick={() => {
+                triggerNativeHaptic('selection')
+                setShowNotifications(true)
+              }}
+              title="Centro de Notificaciones"
+              aria-label="Centro de Notificaciones"
+            >
+              <Bell size={16} strokeWidth={2.2} />
+              {unreadCount > 0 && (
+                <span className={styles.notifBadge}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+
             <UpdateCircleButton
               checking={checking}
               onClick={handleCheckUpdates}
@@ -304,6 +409,24 @@ export function App() {
               <User size={16} strokeWidth={2.2} />
             </button>
 
+            <button
+              type="button"
+              className={`${styles.accountCircleBtn} ${
+                showNotifications ? styles.accountCircleBtnActive : ''
+              }`}
+              onClick={() => {
+                triggerNativeHaptic('selection')
+                setShowNotifications(true)
+              }}
+              title="Centro de Notificaciones"
+              aria-label="Centro de Notificaciones"
+            >
+              <Bell size={16} strokeWidth={2.2} />
+              {unreadCount > 0 && (
+                <span className={styles.notifBadge}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+
             <UpdateCircleButton
               checking={checking}
               onClick={handleCheckUpdates}
@@ -329,7 +452,7 @@ export function App() {
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <span className={styles.sectionTitle}>Herramientas Disponibles</span>
-                <span className={styles.sectionBadge}>2 activas</span>
+                <span className={styles.sectionBadge}>3 activas</span>
               </div>
 
               <div className={styles.toolsGrid}>
@@ -377,6 +500,32 @@ export function App() {
                       <span className={styles.toolName}>Multi-Sesión (PIN)</span>
                       <span className={styles.toolDesc}>
                         Contenedores aislados multi-cuenta sin Chromium, optimización de RAM y bloqueo por PIN.
+                      </span>
+                    </div>
+                  </div>
+                  <span className={styles.toolAction}>
+                    <ChevronRight size={20} strokeWidth={2.2} />
+                  </span>
+                </button>
+
+                {/* Herramienta 3: Agenda & Recordatorios */}
+                <button
+                  type="button"
+                  className={styles.toolCard}
+                  onClick={() => {
+                    triggerNativeHaptic('selection')
+                    setActiveTool('reminders')
+                  }}
+                  aria-label="Abrir Agenda y Recordatorios"
+                >
+                  <div className={styles.toolContent}>
+                    <div className={styles.toolIcon}>
+                      <Bell size={24} strokeWidth={2} />
+                    </div>
+                    <div className={styles.toolMeta}>
+                      <span className={styles.toolName}>Agenda & Recordatorios</span>
+                      <span className={styles.toolDesc}>
+                        Alertas nativas sin internet, respaldo por email y sincronización offline-first.
                       </span>
                     </div>
                   </div>
@@ -441,8 +590,21 @@ export function App() {
           />
         )}
 
+        {activeTool === 'reminders' && (
+          <Reminders
+            platform={appInfo.platform}
+            vault={userPanel.vault}
+            onLocalChange={userPanel.bidirectionalSync}
+            remindersState={remindersState}
+          />
+        )}
+
         {activeTool === 'account' && (
-          <UserPanel platform={appInfo.platform} />
+          <UserPanel
+            platform={appInfo.platform}
+            userPanelState={userPanel}
+            requestedTab={accountTab}
+          />
         )}
 
         {activeTool === 'thanks' && (
@@ -499,6 +661,51 @@ export function App() {
         onSelectTool={setActiveTool}
         platform={appInfo.platform}
       />
+
+      {/* ── Toast Inteligente Global ── */}
+      <GlobalToast />
+
+      {/* ── Asistente IA Flotante (esquina inferior derecha) ── */}
+      <AiAssistant
+        isOpen={showAiAssistant}
+        onToggle={setShowAiAssistant}
+        hasVaultSetup={userPanel.hasVaultSetup}
+        onUnlockVault={userPanel.unlockOrInitVault}
+        onOpenAiSettings={() => {
+          setAccountTab('ai')
+          setActiveTool('account')
+        }}
+        assistantParams={{
+          platform: appInfo.platform,
+          isOnline,
+          activeTool,
+          vault: userPanel.vault,
+          vaultUnlocked: userPanel.vaultUnlocked,
+          hasDatabase: userPanel.hasDatabaseConfigured,
+          pendingRemindersCount: remindersState.reminders.filter((r) => !r.completed).length,
+          sessionsCount: multiSession.sessions.length,
+          activeSessionsCount,
+          onExecuteAction: executeAiAction,
+        }}
+      />
+
+      {/* ── Alarma Activa (Sonido continuo de alto volumen) ── */}
+      {remindersState.activeAlarm && (
+        <AlarmOverlay
+          alarm={remindersState.activeAlarm}
+          onSnooze={remindersState.snoozeAlarm}
+          onStop={remindersState.stopAlarm}
+          onDelete={remindersState.deleteReminder}
+        />
+      )}
+
+      {/* ── Centro de Notificaciones ── */}
+      {showNotifications && (
+        <NotificationsCenter
+          onClose={() => setShowNotifications(false)}
+          onOpenAgenda={() => setActiveTool('reminders')}
+        />
+      )}
 
       {/* ── Modal de Actualizaciones ── */}
       {showModal && updateInfo && (

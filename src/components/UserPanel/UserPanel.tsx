@@ -16,28 +16,36 @@ import {
   EyeOff,
   QrCode,
   RefreshCw,
+  Bot,
 } from 'lucide-react'
 import { useUserPanel } from '@/hooks/useUserPanel'
-import { EMPTY_VAULT, type UserIntegrationsVault } from '@/utils/vaultCrypto'
+import { EMPTY_VAULT, type AiProviderId, type UserIntegrationsVault } from '@/utils/vaultCrypto'
+import { playNotificationSound } from '@/utils/soundEngine'
+import { db, type NotificationSoundPreset } from '@/db/laryko.db'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { triggerNativeHaptic } from '@/utils/nativeIOSBridge'
+import { toast } from '@/utils/toast'
 import type { Platform } from '@/types'
 import styles from './UserPanel.module.css'
 
+export type UserPanelTab = 'sync' | 'ai' | 'database' | 'email' | 'storage' | 'prefs'
+
 export interface UserPanelProps {
   platform: Platform
+  userPanelState?: ReturnType<typeof useUserPanel>
+  requestedTab?: UserPanelTab | null
 }
 
-type UserTab = 'sync' | 'database' | 'email' | 'storage' | 'prefs'
-
-export function UserPanel({ platform }: UserPanelProps) {
+export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelProps) {
+  const internalState = useUserPanel(platform)
   const {
     hasVaultSetup,
+    hasDatabaseConfigured,
     vaultUnlocked,
     vault,
     prefs,
     busy,
     statusMessage,
-    clearStatus,
     unlockOrInitVault,
     lockVault,
     saveVault,
@@ -49,9 +57,16 @@ export function UserPanel({ platform }: UserPanelProps) {
     importPairingCode,
     testResend,
     testR2,
-  } = useUserPanel(platform)
+    testAi,
+  } = userPanelState ?? internalState
 
-  const [activeTab, setActiveTab] = useState<UserTab>('sync')
+  const [activeTab, setActiveTab] = useState<UserPanelTab>(requestedTab ?? 'database')
+
+  useEffect(() => {
+    if (requestedTab) {
+      setActiveTab(requestedTab)
+    }
+  }, [requestedTab])
   const [unlockMode, setUnlockMode] = useState<'vault' | 'code' | 'neon'>('vault')
   const [masterInput, setMasterInput] = useState('')
   const [draft, setDraft] = useState<UserIntegrationsVault>(EMPTY_VAULT)
@@ -63,6 +78,7 @@ export function UserPanel({ platform }: UserPanelProps) {
   const [pullNeonUrl, setPullNeonUrl] = useState('')
   const [pullMasterPass, setPullMasterPass] = useState('')
   const [displayNameDraft, setDisplayNameDraft] = useState(prefs.displayName)
+  const customAudio = useLiveQuery(() => db.customAudio.get(1), [])
 
   useEffect(() => {
     setDraft(vault)
@@ -233,7 +249,10 @@ export function UserPanel({ platform }: UserPanelProps) {
           <div>
             <h2 className={styles.title}>{prefs.displayName}</h2>
             <p className={styles.subtitle}>
-              Bóveda cifrada AES-GCM ·{' '}
+              {hasDatabaseConfigured
+                ? 'Modo Cloud (Neon Postgres)'
+                : 'Modo Local (IndexedDB — sin sync)'}{' '}
+              ·{' '}
               {prefs.lastSyncAt
                 ? `Última sync: ${new Date(prefs.lastSyncAt).toLocaleString()}`
                 : 'Sin sincronización remota aún'}
@@ -263,22 +282,16 @@ export function UserPanel({ platform }: UserPanelProps) {
         </div>
       </div>
 
-      {statusMessage && (
-        <div
-          className={`${styles.banner} ${
-            statusMessage.type === 'ok' ? styles.bannerOk : styles.bannerError
-          }`}
-        >
-          {statusMessage.type === 'ok' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-          <span>{statusMessage.text}</span>
-          <button type="button" className={styles.closeBtn} onClick={clearStatus}>
-            ×
-          </button>
-        </div>
-      )}
-
-      {/* ── Navegación por Secciones ── */}
+      {/* ── Navegación por Secciones (Base de Datos primero como requisito) ── */}
       <div className={styles.tabsRow}>
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${activeTab === 'database' ? styles.tabBtnActive : ''}`}
+          onClick={() => setActiveTab('database')}
+        >
+          <Database size={15} />
+          <span>Base de Datos {hasDatabaseConfigured ? '✓' : '*'}</span>
+        </button>
         <button
           type="button"
           className={`${styles.tabBtn} ${activeTab === 'sync' ? styles.tabBtnActive : ''}`}
@@ -289,11 +302,11 @@ export function UserPanel({ platform }: UserPanelProps) {
         </button>
         <button
           type="button"
-          className={`${styles.tabBtn} ${activeTab === 'database' ? styles.tabBtnActive : ''}`}
-          onClick={() => setActiveTab('database')}
+          className={`${styles.tabBtn} ${activeTab === 'ai' ? styles.tabBtnActive : ''}`}
+          onClick={() => setActiveTab('ai')}
         >
-          <Database size={15} />
-          <span>Neon Postgres</span>
+          <Bot size={15} />
+          <span>Inteligencia Artificial</span>
         </button>
         <button
           type="button"
@@ -347,38 +360,56 @@ export function UserPanel({ platform }: UserPanelProps) {
             <div className={styles.subCard}>
               <h3 className={styles.sectionHeading}>
                 <QrCode size={16} />
-                <span>Sincronizar con otros dispositivos (Desktop / Android / iOS)</span>
+                <span>Sincronizar en todos tus dispositivos (Desktop, iOS, Android y Web)</span>
               </h3>
-              <p className={styles.hint}>
-                Genera un paquete cifrado AES-GCM-256 con todas tus integraciones (Neon, Resend, R2, Drive, Dropbox) para aplicarlo en otro dispositivo sin volver a configurar nada.
-              </p>
+              {!hasDatabaseConfigured ? (
+                <>
+                  <p className={styles.hint}>
+                    <strong>Requisito obligatorio:</strong> Configura primero tu base de datos <strong>Neon Postgres</strong> en la pestaña <em>Base de Datos</em>. Todas tus preferencias, claves y sesiones se guardarán cifradas allí para sincronizarse en todas las plataformas.
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      onClick={() => setActiveTab('database')}
+                    >
+                      <Database size={15} />
+                      <span>Configurar Base de Datos</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className={styles.hint}>
+                    Todas tus preferencias, claves de IA, integraciones y sesiones se sincronizan cifradas (AES-GCM-256) con Neon Postgres y pueden vincularse en otro dispositivo mediante código.
+                  </p>
 
-              <div className={styles.actionsRow}>
-                <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  disabled={busy}
-                  onClick={async () => {
-                    const code = await generatePairingCode()
-                    setPairingCode(code)
-                  }}
-                >
-                  <QrCode size={15} />
-                  <span>Generar Código de Vinculación</span>
-                </button>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      disabled={busy}
+                      onClick={() => syncUpToNeon(draft)}
+                    >
+                      <Upload size={15} />
+                      <span>Sincronizar Todo a Neon</span>
+                    </button>
 
-                {draft.neonDatabaseUrl.trim() && (
-                  <button
-                    type="button"
-                    className={styles.secondaryBtn}
-                    disabled={busy}
-                    onClick={() => syncUpToNeon(draft)}
-                  >
-                    <Upload size={15} />
-                    <span>Subir Bóveda a Neon</span>
-                  </button>
-                )}
-              </div>
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      disabled={busy}
+                      onClick={async () => {
+                        const code = await generatePairingCode()
+                        setPairingCode(code)
+                      }}
+                    >
+                      <QrCode size={15} />
+                      <span>Generar Código de Vinculación</span>
+                    </button>
+                  </div>
+                </>
+              )}
 
               {pairingCode && (
                 <div className={styles.pairingResult}>
@@ -388,7 +419,7 @@ export function UserPanel({ platform }: UserPanelProps) {
                     className={styles.secondaryBtn}
                     onClick={async () => {
                       await navigator.clipboard.writeText(pairingCode)
-                      triggerNativeHaptic('success')
+                      toast.success('Código de vinculación copiado al portapapeles.')
                     }}
                   >
                     <Copy size={14} />
@@ -400,14 +431,165 @@ export function UserPanel({ platform }: UserPanelProps) {
           </div>
         )}
 
+        {activeTab === 'ai' && (
+          <div className={styles.sectionBody}>
+            <h3 className={styles.sectionHeading}>
+              <Bot size={16} />
+              <span>Claves de Inteligencia Artificial (BYOK)</span>
+            </h3>
+            <p className={styles.hint}>
+              Configura tus API Keys de Claude, OpenAI, Gemini u otro proveedor compatible para potenciar las herramientas inteligentes de Laryko.
+            </p>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>Proveedor Principal por Defecto</label>
+              <select
+                className={styles.input}
+                value={draft.aiDefaultProvider}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    aiDefaultProvider: e.target.value as AiProviderId,
+                  }))
+                }
+              >
+                <option value="openai">OpenAI (GPT)</option>
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="custom">Otro (OpenRouter / Groq / Ollama / Custom)</option>
+              </select>
+            </div>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>OpenAI API Key</label>
+              <div className={styles.inlineRow}>
+                <input
+                  type={showSecrets ? 'text' : 'password'}
+                  className={styles.input}
+                  placeholder="sk-proj-..."
+                  value={draft.openaiApiKey}
+                  onChange={(e) => updateField('openaiApiKey', e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={busy || !draft.openaiApiKey.trim()}
+                  onClick={() => testAi('openai', draft.openaiApiKey)}
+                >
+                  Probar
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>Claude (Anthropic) API Key</label>
+              <div className={styles.inlineRow}>
+                <input
+                  type={showSecrets ? 'text' : 'password'}
+                  className={styles.input}
+                  placeholder="sk-ant-api03-..."
+                  value={draft.anthropicApiKey}
+                  onChange={(e) => updateField('anthropicApiKey', e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={busy || !draft.anthropicApiKey.trim()}
+                  onClick={() => testAi('anthropic', draft.anthropicApiKey)}
+                >
+                  Probar
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>Google Gemini API Key</label>
+              <div className={styles.inlineRow}>
+                <input
+                  type={showSecrets ? 'text' : 'password'}
+                  className={styles.input}
+                  placeholder="AIzaSy..."
+                  value={draft.geminiApiKey}
+                  onChange={(e) => updateField('geminiApiKey', e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={busy || !draft.geminiApiKey.trim()}
+                  onClick={() => testAi('gemini', draft.geminiApiKey)}
+                >
+                  Probar
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.subCard}>
+              <h3 className={styles.sectionHeading}>Otro Proveedor (Compatible con OpenAI)</h3>
+              <div className={styles.grid2}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Base URL</label>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="https://openrouter.ai/api/v1"
+                    value={draft.customAiBaseUrl}
+                    onChange={(e) => updateField('customAiBaseUrl', e.target.value)}
+                  />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Modelo por defecto</label>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="llama-3.3-70b / deepseek-chat"
+                    value={draft.customAiModel}
+                    onChange={(e) => updateField('customAiModel', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>API Key (opcional para Ollama local)</label>
+                <div className={styles.inlineRow}>
+                  <input
+                    type={showSecrets ? 'text' : 'password'}
+                    className={styles.input}
+                    placeholder="Token del proveedor personalizado"
+                    value={draft.customAiApiKey}
+                    onChange={(e) => updateField('customAiApiKey', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={busy || !draft.customAiBaseUrl.trim()}
+                    onClick={() => testAi('custom', draft.customAiApiKey, draft.customAiBaseUrl)}
+                  >
+                    Probar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.actionsRow}>
+              <button
+                type="button"
+                className={styles.primaryBtn}
+                disabled={busy}
+                onClick={() => saveVault(draft)}
+              >
+                Guardar Claves de IA
+              </button>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'database' && (
           <div className={styles.sectionBody}>
             <h3 className={styles.sectionHeading}>
               <Database size={16} />
-              <span>Neon Serverless Postgres</span>
+              <span>Base de Datos (Requisito Mandatorio para Sincronización)</span>
             </h3>
             <p className={styles.hint}>
-              Usa tu propia base de datos Neon Postgres como respaldo cifrado E2EE para sincronizar tus dispositivos.
+              Sin una base de datos cloud configurada, Laryko funciona solo en modo local (IndexedDB). Al conectar tu <strong>Neon Serverless Postgres</strong>, todas tus settings, preferencias, claves y sesiones se guardarán y sincronizarán automáticamente en macOS, Windows, Linux, iOS, Android y Web.
             </p>
 
             <div className={styles.fieldGroup}>
@@ -455,10 +637,10 @@ export function UserPanel({ platform }: UserPanelProps) {
           <div className={styles.sectionBody}>
             <h3 className={styles.sectionHeading}>
               <Mail size={16} />
-              <span>Resend (Correo Transaccional & OTP)</span>
+              <span>Resend (Correo de Recordatorios & Alertas)</span>
             </h3>
             <p className={styles.hint}>
-              Configura tu cuenta de Resend para enviar alertas de seguridad, códigos de verificación o notificaciones.
+              Si no tienes dominio propio, deja <code>Laryko &lt;onboarding@resend.dev&gt;</code> como remitente y coloca tu correo personal (Gmail/Outlook registrado en Resend) como destinatario.
             </p>
 
             <div className={styles.fieldGroup}>
@@ -473,24 +655,27 @@ export function UserPanel({ platform }: UserPanelProps) {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Remitente Verificado (From)</label>
+              <label className={styles.label}>Remitente (From)</label>
               <input
                 type="email"
                 className={styles.input}
-                placeholder="Laryko <noreply@tudominio.com>"
+                placeholder="Laryko <onboarding@resend.dev>"
                 value={draft.resendFromEmail}
                 onChange={(e) => updateField('resendFromEmail', e.target.value)}
               />
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Destinatario de prueba</label>
+              <label className={styles.label}>Tu Correo Personal (Destino de alertas y pruebas)</label>
               <input
                 type="email"
                 className={styles.input}
-                placeholder="tu@correo.com"
-                value={testToEmail}
-                onChange={(e) => setTestToEmail(e.target.value)}
+                placeholder="tu@gmail.com"
+                value={draft.resendToEmail || testToEmail}
+                onChange={(e) => {
+                  updateField('resendToEmail', e.target.value)
+                  setTestToEmail(e.target.value)
+                }}
               />
             </div>
 
@@ -506,8 +691,18 @@ export function UserPanel({ platform }: UserPanelProps) {
               <button
                 type="button"
                 className={styles.secondaryBtn}
-                disabled={busy || !draft.resendApiKey.trim() || !draft.resendFromEmail.trim() || !testToEmail.trim()}
-                onClick={() => testResend(draft.resendApiKey, draft.resendFromEmail, testToEmail)}
+                disabled={
+                  busy ||
+                  !draft.resendApiKey.trim() ||
+                  !(draft.resendToEmail || testToEmail).trim()
+                }
+                onClick={() =>
+                  testResend(
+                    draft.resendApiKey,
+                    draft.resendFromEmail || 'Laryko <onboarding@resend.dev>',
+                    draft.resendToEmail || testToEmail
+                  )
+                }
               >
                 Enviar Correo de Prueba
               </button>
@@ -645,6 +840,129 @@ export function UserPanel({ platform }: UserPanelProps) {
               />
               <span>Sincronizar bóveda cifrada automáticamente con Neon Postgres al guardar</span>
             </label>
+
+            <div className={styles.subCard}>
+              <h3 className={styles.sectionHeading}>Sonido, Alarma Custom y Volumen</h3>
+              <div className={styles.grid2}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Tono de alerta / alarma</label>
+                  <select
+                    className={styles.input}
+                    value={prefs.soundPreset ?? 'chime'}
+                    onChange={(e) => {
+                      const next = e.target.value as NotificationSoundPreset
+                      savePrefs({ soundPreset: next })
+                      playNotificationSound(next, prefs.soundVolume ?? 80)
+                    }}
+                  >
+                    <option value="chime">Cristal (Chime)</option>
+                    <option value="bell">Campana</option>
+                    <option value="alarm">Alarma doble</option>
+                    <option value="siren">Sirena fuerte</option>
+                    <option value="soft">Suave</option>
+                    <option value="custom">Audio Custom (subido)</option>
+                    <option value="mute">Silenciado</option>
+                  </select>
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Volumen Notificaciones ({prefs.soundVolume ?? 80}%)</label>
+                  <div className={styles.inlineRow}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={prefs.soundVolume ?? 80}
+                      onChange={(e) => savePrefs({ soundVolume: Number(e.target.value) })}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      onClick={() =>
+                        playNotificationSound(
+                          prefs.soundPreset ?? 'chime',
+                          prefs.soundVolume ?? 80
+                        )
+                      }
+                    >
+                      Probar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.grid2}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Volumen de Alarma ({prefs.alarmVolume ?? 100}%)</label>
+                  <div className={styles.inlineRow}>
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      value={prefs.alarmVolume ?? 100}
+                      onChange={(e) => savePrefs({ alarmVolume: Number(e.target.value) })}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      onClick={() =>
+                        playNotificationSound(
+                          prefs.soundPreset === 'custom' ? 'custom' : 'siren',
+                          prefs.alarmVolume ?? 100,
+                          true
+                        )
+                      }
+                    >
+                      Probar Alarma
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>
+                    Audio Custom (.mp3, .wav, .ogg, .m4a · máx 5MB)
+                  </label>
+                  <div className={styles.inlineRow}>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      className={styles.input}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (file.size > 5 * 1024 * 1024) return
+                        const buf = await file.arrayBuffer()
+                        await db.customAudio.put({
+                          id: 1,
+                          name: file.name,
+                          mimeType: file.type || 'audio/mpeg',
+                          data: buf,
+                          updatedAt: new Date(),
+                        })
+                        await savePrefs({ soundPreset: 'custom' })
+                        await playNotificationSound('custom', prefs.alarmVolume ?? 100, true)
+                      }}
+                    />
+                    {customAudio && (
+                      <button
+                        type="button"
+                        className={styles.secondaryBtn}
+                        onClick={async () => {
+                          await db.customAudio.delete(1)
+                          await savePrefs({ soundPreset: 'siren' })
+                        }}
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                  {customAudio && (
+                    <span className={styles.hint}>Audio cargado: {customAudio.name}</span>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

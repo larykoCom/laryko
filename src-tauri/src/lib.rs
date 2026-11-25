@@ -3,7 +3,10 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::Write;
 use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl,
+    WindowEvent,
 };
 
 #[derive(Clone, Serialize)]
@@ -458,19 +461,25 @@ async fn pull_vault_from_neon(database_url: String) -> Result<Option<String>, St
 }
 
 #[tauri::command]
-async fn test_resend_connection(
+async fn send_resend_email(
     api_key: String,
     from_email: String,
     to_email: String,
+    subject: String,
+    html: String,
 ) -> Result<String, String> {
     let key = api_key.trim();
     if key.is_empty() {
         return Err("La API Key de Resend es obligatoria.".to_string());
     }
-    let from = from_email.trim();
+    let from = if from_email.trim().is_empty() {
+        "Laryko <onboarding@resend.dev>"
+    } else {
+        from_email.trim()
+    };
     let to = to_email.trim();
-    if !from.contains('@') || !to.contains('@') {
-        return Err("Ingresa correos válidos de remitente y destinatario.".to_string());
+    if !to.contains('@') {
+        return Err("Ingresa un correo destinatario válido.".to_string());
     }
 
     let client = reqwest::Client::builder()
@@ -481,8 +490,8 @@ async fn test_resend_connection(
     let payload = serde_json::json!({
         "from": from,
         "to": [to],
-        "subject": "Laryko — Prueba de conexión Resend",
-        "html": "<p>Tu integración de <strong>Resend</strong> en Laryko está funcionando correctamente.</p>"
+        "subject": subject,
+        "html": html
     });
 
     let res = client
@@ -500,7 +509,23 @@ async fn test_resend_connection(
         return Err(format!("Resend respondió HTTP {}: {}", status, text));
     }
 
-    Ok("Correo de prueba enviado correctamente con Resend.".to_string())
+    Ok("Correo enviado correctamente con Resend.".to_string())
+}
+
+#[tauri::command]
+async fn test_resend_connection(
+    api_key: String,
+    from_email: String,
+    to_email: String,
+) -> Result<String, String> {
+    send_resend_email(
+        api_key,
+        from_email,
+        to_email,
+        "Laryko — Prueba de conexión Resend".to_string(),
+        "<p>Tu integración de <strong>Resend</strong> en Laryko está funcionando correctamente.</p>".to_string(),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -540,10 +565,405 @@ async fn test_r2_endpoint(account_id: String, bucket_name: String) -> Result<Str
     Err(format!("Endpoint R2 devolvió HTTP {}.", code))
 }
 
+#[tauri::command]
+async fn test_ai_provider(
+    provider: String,
+    api_key: String,
+    base_url: Option<String>,
+) -> Result<String, String> {
+    let key = api_key.trim();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let req = match provider.as_str() {
+        "openai" => {
+            if key.is_empty() {
+                return Err("La API Key de OpenAI es obligatoria.".to_string());
+            }
+            client
+                .get("https://api.openai.com/v1/models")
+                .bearer_auth(key)
+        }
+        "anthropic" => {
+            if key.is_empty() {
+                return Err("La API Key de Claude (Anthropic) es obligatoria.".to_string());
+            }
+            client
+                .get("https://api.anthropic.com/v1/models")
+                .header("x-api-key", key)
+                .header("anthropic-version", "2023-06-01")
+        }
+        "gemini" => {
+            if key.is_empty() {
+                return Err("La API Key de Google Gemini es obligatoria.".to_string());
+            }
+            client
+                .get("https://generativelanguage.googleapis.com/v1beta/models")
+                .header("x-goog-api-key", key)
+        }
+        "custom" => {
+            let raw_base = base_url.unwrap_or_default();
+            let trimmed_base = raw_base.trim().trim_end_matches('/');
+            let parsed = tauri::Url::parse(trimmed_base)
+                .map_err(|_| "URL base personalizada inválida.".to_string())?;
+            if parsed.scheme() != "https" && parsed.scheme() != "http" {
+                return Err("La URL base debe usar https:// o http://".to_string());
+            }
+            let endpoint = format!("{}/models", trimmed_base);
+            let mut r = client.get(&endpoint);
+            if !key.is_empty() {
+                r = r.bearer_auth(key);
+            }
+            r
+        }
+        _ => return Err("Proveedor de IA no reconocido.".to_string()),
+    };
+
+    let res = req
+        .send()
+        .await
+        .map_err(|e| format!("Error conectando con el proveedor de IA: {}", e))?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+        return Err(format!("El proveedor respondió HTTP {}: {}", status, text));
+    }
+
+    Ok(format!("Conexión verificada correctamente con {}.", provider))
+}
+
+#[derive(serde::Deserialize)]
+struct AiChatMessageInput {
+    role: String,
+    content: String,
+}
+
+#[tauri::command]
+async fn ai_chat_completion(
+    provider: String,
+    api_key: String,
+    messages: Vec<AiChatMessageInput>,
+    base_url: Option<String>,
+    model: Option<String>,
+) -> Result<String, String> {
+    let key = api_key.trim();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(45))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let system_text = messages
+        .iter()
+        .filter(|m| m.role == "system")
+        .map(|m| m.content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let non_system: Vec<&AiChatMessageInput> =
+        messages.iter().filter(|m| m.role != "system").collect();
+
+    match provider.as_str() {
+        "openai" | "custom" => {
+            let endpoint = if provider == "openai" {
+                if key.is_empty() {
+                    return Err("Falta la API Key de OpenAI en Cuenta -> Inteligencia Artificial.".to_string());
+                }
+                "https://api.openai.com/v1/chat/completions".to_string()
+            } else {
+                let raw = base_url.unwrap_or_default();
+                let trimmed = raw.trim().trim_end_matches('/');
+                let parsed = tauri::Url::parse(trimmed)
+                    .map_err(|_| "Base URL personalizada inválida.".to_string())?;
+                if parsed.scheme() != "https" && parsed.scheme() != "http" {
+                    return Err("La URL base debe usar https:// o http://".to_string());
+                }
+                format!("{}/chat/completions", trimmed)
+            };
+
+            let chosen_model = model
+                .filter(|m| !m.trim().is_empty())
+                .unwrap_or_else(|| "gpt-4o-mini".to_string());
+
+            let api_msgs: Vec<serde_json::Value> = messages
+                .iter()
+                .map(|m| serde_json::json!({ "role": m.role, "content": m.content }))
+                .collect();
+
+            let body = serde_json::json!({
+                "model": chosen_model,
+                "messages": api_msgs,
+                "temperature": 0.4
+            });
+
+            let mut req = client
+                .post(&endpoint)
+                .header("Content-Type", "application/json")
+                .body(body.to_string());
+            if !key.is_empty() {
+                req = req.bearer_auth(key);
+            }
+
+            let res = req.send().await.map_err(|e| e.to_string())?;
+            let status = res.status();
+            let text = res.text().await.unwrap_or_default();
+            if !status.is_success() {
+                return Err(format!("Error IA HTTP {}: {}", status, text));
+            }
+            let json: serde_json::Value =
+                serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            json.get("choices")
+                .and_then(|c| c.get(0))
+                .and_then(|c| c.get("message"))
+                .and_then(|m| m.get("content"))
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string())
+                .ok_or_else(|| "Respuesta inesperada del proveedor IA.".to_string())
+        }
+        "anthropic" => {
+            if key.is_empty() {
+                return Err("Falta la API Key de Claude (Anthropic).".to_string());
+            }
+            let chosen_model = model
+                .filter(|m| !m.trim().is_empty())
+                .unwrap_or_else(|| "claude-3-5-sonnet-latest".to_string());
+            let api_msgs: Vec<serde_json::Value> = non_system
+                .iter()
+                .map(|m| {
+                    serde_json::json!({
+                        "role": if m.role == "assistant" { "assistant" } else { "user" },
+                        "content": m.content
+                    })
+                })
+                .collect();
+
+            let body = serde_json::json!({
+                "model": chosen_model,
+                "max_tokens": 1024,
+                "system": system_text,
+                "messages": api_msgs
+            });
+
+            let res = client
+                .post("https://api.anthropic.com/v1/messages")
+                .header("x-api-key", key)
+                .header("anthropic-version", "2023-06-01")
+                .header("Content-Type", "application/json")
+                .body(body.to_string())
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+
+            let status = res.status();
+            let text = res.text().await.unwrap_or_default();
+            if !status.is_success() {
+                return Err(format!("Error Claude HTTP {}: {}", status, text));
+            }
+            let json: serde_json::Value =
+                serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            json.get("content")
+                .and_then(|c| c.get(0))
+                .and_then(|c| c.get("text"))
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string())
+                .ok_or_else(|| "Respuesta inesperada de Claude.".to_string())
+        }
+        "gemini" => {
+            if key.is_empty() {
+                return Err("Falta la API Key de Google Gemini.".to_string());
+            }
+            let chosen_model = model
+                .filter(|m| !m.trim().is_empty())
+                .unwrap_or_else(|| "gemini-2.5-flash".to_string());
+            let contents: Vec<serde_json::Value> = non_system
+                .iter()
+                .map(|m| {
+                    serde_json::json!({
+                        "role": if m.role == "assistant" { "model" } else { "user" },
+                        "parts": [{ "text": m.content }]
+                    })
+                })
+                .collect();
+
+            let body = serde_json::json!({
+                "system_instruction": { "parts": [{ "text": system_text }] },
+                "contents": contents
+            });
+
+            let endpoint = format!(
+                "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+                chosen_model
+            );
+            let res = client
+                .post(&endpoint)
+                .header("x-goog-api-key", key)
+                .header("Content-Type", "application/json")
+                .body(body.to_string())
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+
+            let status = res.status();
+            let text = res.text().await.unwrap_or_default();
+            if !status.is_success() {
+                return Err(format!("Error Gemini HTTP {}: {}", status, text));
+            }
+            let json: serde_json::Value =
+                serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            json.get("candidates")
+                .and_then(|c| c.get(0))
+                .and_then(|c| c.get("content"))
+                .and_then(|c| c.get("parts"))
+                .and_then(|p| p.get(0))
+                .and_then(|p| p.get("text"))
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string())
+                .ok_or_else(|| "Respuesta inesperada de Gemini.".to_string())
+        }
+        _ => Err("Proveedor de IA no soportado.".to_string()),
+    }
+}
+
+fn ensure_notification_icon_path() -> Option<std::path::PathBuf> {
+    let path = std::env::temp_dir().join("laryko-notif-icon.png");
+    if !path.exists() {
+        let icon_bytes = include_bytes!("../icons/128x128.png");
+        let _ = std::fs::write(&path, icon_bytes);
+    }
+    if path.exists() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+#[tauri::command]
+fn send_native_notification(title: String, body: String) -> Result<(), String> {
+    let clean_title = title.replace(['"', '\\', '\n', '\r'], " ");
+    let clean_body = body.replace(['"', '\\', '\n', '\r'], " ");
+    let icon_path = ensure_notification_icon_path();
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = &icon_path;
+        let script = format!(
+            "display notification \"{}\" with title \"{}\"",
+            clean_body, clean_title
+        );
+        std::process::Command::new("osascript")
+            .args(["-e", &script])
+            .spawn()
+            .map_err(|e| format!("Error enviando notificación macOS: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let mut cmd = std::process::Command::new("notify-send");
+        if let Some(ref p) = icon_path {
+            cmd.args(["-i", &p.to_string_lossy()]);
+        }
+        cmd.args([&clean_title, &clean_body])
+            .spawn()
+            .map_err(|e| format!("Error enviando notificación Linux: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let img_xml = icon_path
+            .as_ref()
+            .map(|p| {
+                format!(
+                    "$img = $t.GetElementsByTagName('image').Item(0); if ($img) {{ $img.SetAttribute('src', 'file:///{}'); }}",
+                    p.to_string_lossy().replace('\\', "/").replace('\'', "''")
+                )
+            })
+            .unwrap_or_default();
+        let template = if icon_path.is_some() {
+            "ToastImageAndText02"
+        } else {
+            "ToastText02"
+        };
+        let ps = format!(
+            "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; $t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::{}); $n = $t.GetElementsByTagName('text'); $n.Item(0).AppendChild($t.CreateTextNode('{}')) > $null; $n.Item(1).AppendChild($t.CreateTextNode('{}')) > $null; {} [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Laryko').Show([Windows.UI.Notifications.ToastNotification]::new($t))",
+            template,
+            clean_title.replace('\'', "''"),
+            clean_body.replace('\'', "''"),
+            img_xml
+        );
+        std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps])
+            .spawn()
+            .map_err(|e| format!("Error enviando notificación Windows: {}", e))?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            let show_item = MenuItem::with_id(app, "show", "Abrir Laryko", true, None::<&str>)?;
+            let quit_item =
+                MenuItem::with_id(app, "quit", "Salir completamente", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+            let mut tray_builder = TrayIconBuilder::new()
+                .menu(&menu)
+                .tooltip("Laryko")
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(win) = app.get_window("main") {
+                            let _ = win.show();
+                            let _ = win.unminimize();
+                            let _ = win.set_focus();
+                        }
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(win) = app.get_window("main") {
+                            let _ = win.show();
+                            let _ = win.unminimize();
+                            let _ = win.set_focus();
+                        }
+                    }
+                });
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+
+            tray_builder.build(app)?;
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                    for (label, wv) in window.app_handle().webviews() {
+                        if label.starts_with("session-") {
+                            let _ = wv.hide();
+                        }
+                    }
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             download_and_install_update,
             open_external_url,
@@ -557,8 +977,12 @@ pub fn run() {
             test_neon_connection,
             sync_vault_to_neon,
             pull_vault_from_neon,
+            send_resend_email,
             test_resend_connection,
-            test_r2_endpoint
+            test_r2_endpoint,
+            test_ai_provider,
+            ai_chat_completion,
+            send_native_notification
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

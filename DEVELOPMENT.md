@@ -154,7 +154,7 @@ laryko/
 ├── scripts/
 │   └── sync-version.mjs         # Sincronización automática de versión y copyright
 ├── capacitor.config.ts          # Configuración Capacitor (com.laryko, laryko://)
-├── GEMINI.md                    # Reglas de seguridad y sincronización de metadatos
+├── AGENTS.md                    # Reglas obligatorias para agentes IA (Graphify, seguridad, toast, metadatos)
 ├── package.json
 ├── pnpm-lock.yaml
 ├── tsconfig.json

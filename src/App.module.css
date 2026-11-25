@@ -275,6 +275,7 @@
 }
 
 .accountCircleBtn {
+  position: relative;
   width: 34px;
   height: 34px;
   border-radius: var(--radius-full);
@@ -287,6 +288,24 @@
   cursor: pointer;
   flex-shrink: 0;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.notifBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-bg);
 }
 
 .accountCircleBtn:hover {
