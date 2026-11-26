@@ -222,6 +222,77 @@ fn resolve_macos_user_agent(url: &tauri::Url) -> &'static str {
     }
 }
 
+#[derive(Clone, Serialize)]
+struct SessionUrlPayload {
+    uuid: String,
+    url: String,
+}
+
+#[derive(Clone, Serialize)]
+struct SessionUnreadPayload {
+    uuid: String,
+    count: u32,
+}
+
+fn extract_unread_count_from_title(title: &str) -> u32 {
+    let trimmed = title.trim();
+    if let Some(start) = trimmed.find('(') {
+        if let Some(end_rel) = trimmed[start + 1..].find(')') {
+            let inner = trimmed[start + 1..start + 1 + end_rel].trim();
+            if let Ok(num) = inner.trim_end_matches('+').parse::<u32>() {
+                return num;
+            }
+        }
+    }
+    if trimmed.starts_with("• ") || trimmed.starts_with("* ") {
+        return 1;
+    }
+    0
+}
+
+#[tauri::command]
+fn control_session_webview(
+    app: AppHandle,
+    session_uuid: String,
+    action: String,
+    url: Option<String>,
+) -> Result<String, String> {
+    validate_session_uuid(&session_uuid)?;
+    let label = format!("session-{}", session_uuid);
+    let wv = app
+        .get_webview(&label)
+        .ok_or_else(|| "La sesión no está activa.".to_string())?;
+
+    match action.as_str() {
+        "back" => {
+            wv.eval("window.history.back()")
+                .map_err(|e| format!("No se pudo retroceder: {}", e))?;
+        }
+        "forward" => {
+            wv.eval("window.history.forward()")
+                .map_err(|e| format!("No se pudo avanzar: {}", e))?;
+        }
+        "reload" => {
+            wv.reload()
+                .map_err(|e| format!("No se pudo recargar: {}", e))?;
+        }
+        "navigate" => {
+            let raw = url.unwrap_or_default();
+            let parsed = tauri::Url::parse(raw.trim())
+                .map_err(|_| "URL inválida para navegar.".to_string())?;
+            if !matches!(parsed.scheme(), "https" | "http") {
+                return Err("Solo se permiten enlaces http:// o https://.".to_string());
+            }
+            wv.navigate(parsed)
+                .map_err(|e| format!("No se pudo navegar: {}", e))?;
+        }
+        "get_url" => {}
+        _ => return Err("Acción de navegador no reconocida.".to_string()),
+    }
+
+    Ok(wv.url().map(|u| u.to_string()).unwrap_or_default())
+}
+
 #[tauri::command]
 async fn open_session_webview(
     app: AppHandle,
@@ -272,6 +343,35 @@ async fn open_session_webview(
     #[allow(unused_mut)]
     let mut builder = WebviewBuilder::new(&label, WebviewUrl::External(parsed_url))
         .disable_drag_drop_handler()
+        .on_page_load({
+            let app_for_url = app.clone();
+            let uuid_for_url = session_uuid.clone();
+            move |wv, payload| {
+                if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                    let _ = app_for_url.emit(
+                        "laryko://session-url",
+                        SessionUrlPayload {
+                            uuid: uuid_for_url.clone(),
+                            url: wv.url().map(|u| u.to_string()).unwrap_or_else(|_| payload.url().to_string()),
+                        },
+                    );
+                }
+            }
+        })
+        .on_document_title_changed({
+            let app_for_title = app.clone();
+            let uuid_for_title = session_uuid.clone();
+            move |_wv, title| {
+                let count = extract_unread_count_from_title(&title);
+                let _ = app_for_title.emit(
+                    "laryko://session-unread",
+                    SessionUnreadPayload {
+                        uuid: uuid_for_title.clone(),
+                        count,
+                    },
+                );
+            }
+        })
         .on_new_window(move |url, _features| {
             if matches!(url.scheme(), "https" | "http") {
                 let _ = open_external_url(url.to_string());
@@ -1321,6 +1421,7 @@ pub fn run() {
             download_and_install_update,
             open_external_url,
             open_session_webview,
+            control_session_webview,
             set_session_bounds,
             hide_all_session_webviews,
             sleep_session_webview,

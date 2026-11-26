@@ -29,11 +29,19 @@ export const SESSION_TEMPLATES: QuickTemplate[] = [
     url: 'https://accounts.google.com/ServiceLogin?service=mail&continue=https://mail.google.com/mail/',
     color: '#ea4335',
   },
+  { name: 'WhatsApp', url: 'https://web.whatsapp.com', color: '#10b981' },
+  { name: 'Telegram', url: 'https://web.telegram.org', color: '#0088cc' },
+  { name: 'Facebook', url: 'https://www.facebook.com', color: '#1877f2' },
+  { name: 'Instagram', url: 'https://www.instagram.com', color: '#e4405f' },
+  { name: 'X', url: 'https://x.com', color: '#0f172a' },
+  { name: 'LinkedIn', url: 'https://www.linkedin.com', color: '#0a66c2' },
+  { name: 'Discord', url: 'https://discord.com/app', color: '#5865f2' },
+  { name: 'TikTok', url: 'https://www.tiktok.com', color: '#111827' },
+  { name: 'YouTube', url: 'https://www.youtube.com', color: '#ff0000' },
   { name: 'Outlook', url: 'https://outlook.live.com', color: '#0078d4' },
   { name: 'GitHub', url: 'https://github.com/login', color: '#8b5cf6' },
   { name: 'Notion', url: 'https://www.notion.so/login', color: '#f59e0b' },
   { name: 'Slack', url: 'https://app.slack.com', color: '#e11d48' },
-  { name: 'WhatsApp', url: 'https://web.whatsapp.com', color: '#10b981' },
 ]
 
 export function useMultiSession(platform: Platform) {

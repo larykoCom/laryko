@@ -204,9 +204,9 @@
     "semantic_hash": "13b49a574a9ddf1280c40c7e263c7cf4"
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1795661038.1587636,
-    "seen": 1795661533.9712589,
-    "ast_hash": "d819c6657a63ddc9baee8ff29f3bf7cf",
+    "mtime": 1795663194.9489849,
+    "seen": 1795663259.389415,
+    "ast_hash": "1c071ac98d165d352db3f4b6860fe388",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -216,15 +216,15 @@
     "semantic_hash": "c130825ecc18197fee383f19523f8164"
   },
   "src-tauri/tauri.conf.json": {
-    "mtime": 1795624782.5949528,
-    "seen": 1795642899.7828019,
-    "ast_hash": "3cb988f414327db71a5bc8b1b34e29c6",
-    "semantic_hash": "3cb988f414327db71a5bc8b1b34e29c6"
+    "mtime": 1795662892.1517355,
+    "seen": 1795663259.389416,
+    "ast_hash": "77615d7d9d18ef0de9e1ae841b3bd0f8",
+    "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795661888.6771715,
-    "seen": 1795661939.133843,
-    "ast_hash": "6e76a6b03c78389f44de1f515d4ec8a4",
+    "mtime": 1795663201.3473089,
+    "seen": 1795663259.389417,
+    "ast_hash": "add5460f5f94cc4ca3311136e9c68f5c",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -306,9 +306,9 @@
     "semantic_hash": "a9fe1931f937546db614f145794174c6"
   },
   "src/components/MultiSession/MultiSession.tsx": {
-    "mtime": 1795661930.7018363,
-    "seen": 1795661939.1338549,
-    "ast_hash": "ce5cce3411137cc07fce6fa503717ec7",
+    "mtime": 1795663190.966571,
+    "seen": 1795663259.389429,
+    "ast_hash": "c307d63db2e9ba755684e8617ec7bb6c",
     "semantic_hash": ""
   },
   "src/components/MultiSession/PinLock.tsx": {
@@ -444,9 +444,9 @@
     "semantic_hash": "4e36b15a052a6ffcc10d4c0d148103c2"
   },
   "src/hooks/useMultiSession.ts": {
-    "mtime": 1795661869.898754,
-    "seen": 1795661939.133876,
-    "ast_hash": "62900334936a907f52000859613f3080",
+    "mtime": 1795663189.4528012,
+    "seen": 1795663259.389451,
+    "ast_hash": "7ae77c97c2b16bebc7b9b10322c3576d",
     "semantic_hash": ""
   },
   "src/hooks/useNotificationsCenter.ts": {
@@ -522,10 +522,10 @@
     "semantic_hash": ""
   },
   "src/utils/multiSessionBridge.ts": {
-    "mtime": 1795624782.7352235,
-    "seen": 1795642899.7828412,
-    "ast_hash": "817237f64a4fde19219b82a0f15e9437",
-    "semantic_hash": "817237f64a4fde19219b82a0f15e9437"
+    "mtime": 1795662408.383412,
+    "seen": 1795662513.874583,
+    "ast_hash": "c7eb05096dd1cf61c49d88a97b7e2821",
+    "semantic_hash": ""
   },
   "src/utils/nativeIOSBridge.ts": {
     "mtime": 1795122718.903805,

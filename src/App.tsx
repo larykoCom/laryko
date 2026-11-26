@@ -8,7 +8,11 @@ import {
   Home,
   Calculator as CalculatorIcon,
   Layers,
+  ChevronLeft,
   ChevronRight,
+  RotateCw,
+  Copy,
+  ExternalLink,
   Plus,
   Moon,
   Lock,
@@ -41,6 +45,7 @@ import {
 } from '@/components'
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import { multiSessionBridge } from '@/utils/multiSessionBridge'
+import { sanitizeSessionUrl } from '@/utils/pinCrypto'
 import { toast } from '@/utils/toast'
 import type { LarykoAiAction } from '@/utils/aiAssistantActions'
 import styles from './App.module.css'
@@ -83,6 +88,61 @@ export function App() {
   const [currentSessionUuid, setCurrentSessionUuid] = useState<string | null>(null)
   const [showSessionManager, setShowSessionManager] = useState(true)
   const [addFormSignal, setAddFormSignal] = useState(0)
+  const [browserUrlDraft, setBrowserUrlDraft] = useState('')
+  const [unreadBySession, setUnreadBySession] = useState<Record<string, number>>({})
+
+  const isDesktopTauri =
+    ['macos', 'windows', 'linux'].includes(appInfo.platform) &&
+    typeof window !== 'undefined' &&
+    '__TAURI_INTERNALS__' in window
+
+  const activeSessionObj =
+    multiSession.sessions.find((s) => s.uuid === currentSessionUuid) ?? null
+  const showBrowserControls =
+    isDesktopTauri &&
+    activeTool === 'sessions' &&
+    multiSession.isUnlocked &&
+    Boolean(activeSessionObj) &&
+    !showSessionManager
+
+  useEffect(() => {
+    if (activeSessionObj) {
+      setBrowserUrlDraft(activeSessionObj.url)
+    }
+  }, [activeSessionObj?.uuid, activeSessionObj?.url])
+
+  useEffect(() => {
+    if (!isDesktopTauri) return
+    let unlisten: (() => void) | undefined
+    let unlistenUnread: (() => void) | undefined
+    import('@tauri-apps/api/event')
+      .then(async ({ listen }) => {
+        unlisten = await listen<{ uuid: string; url: string }>('laryko://session-url', (event) => {
+          if (event.payload?.uuid === currentSessionUuid && event.payload?.url) {
+            setBrowserUrlDraft(event.payload.url)
+          }
+        })
+        unlistenUnread = await listen<{ uuid: string; count: number }>(
+          'laryko://session-unread',
+          (event) => {
+            const { uuid, count } = event.payload ?? {}
+            if (!uuid) return
+            setUnreadBySession((prev) => ({
+              ...prev,
+              [uuid]:
+                uuid === currentSessionUuid && activeTool === 'sessions' && !showSessionManager
+                  ? 0
+                  : count,
+            }))
+          }
+        )
+      })
+      .catch(() => {})
+    return () => {
+      unlisten?.()
+      unlistenUnread?.()
+    }
+  }, [isDesktopTauri, currentSessionUuid, activeTool, showSessionManager])
 
   useEffect(() => {
     if (appInfo.platform === 'ios') {
@@ -182,6 +242,177 @@ export function App() {
 
   return (
     <div className={styles.app}>
+      {isDesktopTauri && (
+        <header
+          className={`${styles.titlebar} ${appInfo.platform !== 'macos' ? styles.titlebarWin : ''}`}
+          data-tauri-drag-region
+        >
+          {showBrowserControls && activeSessionObj ? (
+            <>
+              <div className={styles.titlebarNavGroup}>
+                <button
+                  type="button"
+                  className={styles.titlebarIconBtn}
+                  onClick={() =>
+                    void multiSessionBridge.controlSession(
+                      appInfo.platform,
+                      activeSessionObj.uuid,
+                      'back'
+                    )
+                  }
+                  title="Atrás"
+                  aria-label="Atrás"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.titlebarIconBtn}
+                  onClick={() =>
+                    void multiSessionBridge.controlSession(
+                      appInfo.platform,
+                      activeSessionObj.uuid,
+                      'forward'
+                    )
+                  }
+                  title="Adelante"
+                  aria-label="Adelante"
+                >
+                  <ChevronRight size={15} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.titlebarIconBtn}
+                  onClick={() =>
+                    void multiSessionBridge.controlSession(
+                      appInfo.platform,
+                      activeSessionObj.uuid,
+                      'reload'
+                    )
+                  }
+                  title="Recargar"
+                  aria-label="Recargar"
+                >
+                  <RotateCw size={13} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.titlebarIconBtn}
+                  onClick={() => {
+                    setBrowserUrlDraft(activeSessionObj.url)
+                    void multiSessionBridge.controlSession(
+                      appInfo.platform,
+                      activeSessionObj.uuid,
+                      'navigate',
+                      activeSessionObj.url
+                    )
+                  }}
+                  title="Ir al inicio de esta sesión"
+                  aria-label="Ir al inicio"
+                >
+                  <Home size={13} />
+                </button>
+              </div>
+
+              <form
+                className={styles.titlebarUrlForm}
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const safe = sanitizeSessionUrl(browserUrlDraft)
+                  if (!safe) {
+                    toast.error('Ingresa una URL http:// o https:// válida.')
+                    return
+                  }
+                  setBrowserUrlDraft(safe)
+                  void multiSessionBridge.controlSession(
+                    appInfo.platform,
+                    activeSessionObj.uuid,
+                    'navigate',
+                    safe
+                  )
+                }}
+              >
+                <Lock
+                  size={12}
+                  style={{
+                    color: browserUrlDraft.startsWith('https://')
+                      ? '#10b981'
+                      : 'var(--color-text-muted)',
+                    flexShrink: 0,
+                  }}
+                />
+                <input
+                  type="text"
+                  className={styles.titlebarUrlInput}
+                  value={browserUrlDraft}
+                  onChange={(e) => setBrowserUrlDraft(e.target.value)}
+                  aria-label="URL de la sesión"
+                />
+                <button
+                  type="button"
+                  className={styles.titlebarIconBtn}
+                  style={{ width: 22, height: 22 }}
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(browserUrlDraft)
+                    toast.success('URL copiada al portapapeles.')
+                  }}
+                  title="Copiar URL"
+                  aria-label="Copiar URL"
+                >
+                  <Copy size={11} />
+                </button>
+              </form>
+
+              <div className={styles.titlebarRight} data-tauri-drag-region>
+                <button
+                  type="button"
+                  className={styles.titlebarPillBtn}
+                  onClick={() => {
+                    setShowSessionManager(true)
+                    setAddFormSignal((n) => n + 1)
+                  }}
+                  title="Nueva sesión"
+                >
+                  <Plus size={13} />
+                  <span>Sesión</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.titlebarIconBtn}
+                  onClick={async () => {
+                    const safe = sanitizeSessionUrl(browserUrlDraft) ?? activeSessionObj.url
+                    const { invoke } = await import('@tauri-apps/api/core')
+                    await invoke('open_external_url', { url: safe }).catch(() => {})
+                  }}
+                  title="Abrir en navegador predeterminado"
+                  aria-label="Abrir en navegador predeterminado"
+                >
+                  <ExternalLink size={14} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.titlebarIconBtn}
+                  onClick={async () => {
+                    await multiSession.sleepSession(activeSessionObj)
+                    setCurrentSessionUuid(null)
+                    setShowSessionManager(true)
+                  }}
+                  title="Dormir sesión"
+                  aria-label="Dormir sesión"
+                >
+                  <Moon size={14} />
+                </button>
+              </div>
+            </>
+          ) : (
+            <span className={styles.titlebarBrand} data-tauri-drag-region>
+              Laryko
+            </span>
+          )}
+        </header>
+      )}
+
+      <div className={styles.appBody}>
       {/* ── Sidebar de Escritorio (>= 768px) ── */}
       <aside
         className={`${styles.desktopSidebar} ${activeTool === 'sessions' ? styles.desktopSidebarCompact : ''}`}
@@ -268,21 +499,29 @@ export function App() {
               {multiSession.sessions.map((session) => {
                 const isActive = session.status === 'active'
                 const isSelected = currentSessionUuid === session.uuid && !showSessionManager
+                const unreadCountForSession = unreadBySession[session.uuid] ?? 0
                 return (
                   <button
                     key={session.uuid}
                     type="button"
                     className={`${styles.sidebarSessionAvatarBtn} ${
                       isSelected ? styles.sidebarSessionSelected : ''
-                    }`}
+                    } ${unreadCountForSession > 0 ? styles.sidebarSessionUnreadBlink : ''}`}
                     style={{ backgroundColor: session.color }}
                     onClick={() => {
                       triggerNativeHaptic('selection')
                       setCurrentSessionUuid(session.uuid)
                       setShowSessionManager(false)
+                      setUnreadBySession((prev) => ({ ...prev, [session.uuid]: 0 }))
                     }}
                     title={`${session.name} (${isActive ? 'Activa' : 'Dormida'})`}
-                    data-tooltip={`${session.name} · ${isActive ? 'Activa' : 'Dormida'}`}
+                    data-tooltip={`${session.name} · ${
+                      unreadCountForSession > 0
+                        ? `${unreadCountForSession} nueva(s)`
+                        : isActive
+                          ? 'Activa'
+                          : 'Dormida'
+                    }`}
                   >
                     {session.icon ? (
                       <img
@@ -292,6 +531,11 @@ export function App() {
                       />
                     ) : (
                       session.name.slice(0, 2).toUpperCase()
+                    )}
+                    {unreadCountForSession > 0 && (
+                      <span className={styles.sidebarSessionUnreadBadge}>
+                        {unreadCountForSession > 99 ? '99+' : unreadCountForSession}
+                      </span>
                     )}
                     <span
                       className={`${styles.sidebarSessionDot} ${
@@ -599,6 +843,7 @@ export function App() {
           />
         )}
       </main>
+      </div>
       </div>
 
       {/* ── Barra Inferior Flotante (Liquid Glass Dock en Móvil / Ventana estrecha) ── */}

@@ -115,6 +115,23 @@ export const multiSessionBridge = {
     }
   },
 
+  async controlSession(
+    platform: Platform,
+    uuid: string,
+    action: 'back' | 'forward' | 'reload' | 'navigate' | 'get_url',
+    url?: string
+  ): Promise<string> {
+    if (isTauriPlatform(platform)) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return invoke<string>('control_session_webview', {
+        sessionUuid: uuid,
+        action,
+        url,
+      })
+    }
+    return ''
+  },
+
   async sleepSession(platform: Platform, uuid: string): Promise<void> {
     if (isTauriPlatform(platform)) {
       const { invoke } = await import('@tauri-apps/api/core')

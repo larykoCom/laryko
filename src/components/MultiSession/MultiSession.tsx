@@ -509,6 +509,18 @@ export function MultiSession({
                   {tpl.name}
                 </button>
               ))}
+              <button
+                type="button"
+                className={styles.templateBtn}
+                onClick={() => {
+                  setNewName('')
+                  setNewUrl('')
+                  setNewColor(COLOR_SWATCHES[0])
+                }}
+              >
+                <Plus size={12} />
+                Otro
+              </button>
             </div>
 
             <input
@@ -554,6 +566,35 @@ export function MultiSession({
                   aria-label={`Color ${c}`}
                 />
               ))}
+              <label
+                title="Elegir color personalizado"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 999,
+                  border: '2px dashed var(--color-border)',
+                  background: newColor,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}
+              >
+                <input
+                  type="color"
+                  value={/^#[0-9a-f]{6}$/i.test(newColor) ? newColor : '#3b82f6'}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  aria-label="Color personalizado"
+                  style={{
+                    opacity: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer',
+                  }}
+                />
+              </label>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
