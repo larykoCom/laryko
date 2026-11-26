@@ -114,14 +114,14 @@
     "semantic_hash": "1162e1cddd7ea769bcacdd1aa7b4ac72"
   },
   "ios/App/App/SceneDelegate.swift": {
-    "mtime": 1795635525.391401,
-    "seen": 1795642899.782778,
-    "ast_hash": "c331f2c62ad2028e1fd3437dbc0a772c",
-    "semantic_hash": "c331f2c62ad2028e1fd3437dbc0a772c"
+    "mtime": 1795665236.948429,
+    "seen": 1795665286.1170702,
+    "ast_hash": "89d499ac2167f67680bb572a249f0f56",
+    "semantic_hash": ""
   },
   "ios/App/CapApp-SPM/Package.swift": {
-    "mtime": 1795231843.1226456,
-    "seen": 1795642899.782779,
+    "mtime": 1795665284.112654,
+    "seen": 1795665286.1170712,
     "ast_hash": "ec7530133167205945f5821e62a20d20",
     "semantic_hash": "ec7530133167205945f5821e62a20d20"
   },
@@ -222,8 +222,8 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795663201.3473089,
-    "seen": 1795663259.389417,
+    "mtime": 1795663349.8003166,
+    "seen": 1795665286.1170838,
     "ast_hash": "add5460f5f94cc4ca3311136e9c68f5c",
     "semantic_hash": ""
   },
@@ -252,9 +252,9 @@
     "semantic_hash": "663747397b4bcefee24cfbdfe19acd25"
   },
   "src/components/BottomBar/BottomBar.tsx": {
-    "mtime": 1795652647.8361785,
-    "seen": 1795659837.206039,
-    "ast_hash": "b76483c85eb954314d93718684b5e3c2",
+    "mtime": 1795665234.033275,
+    "seen": 1795665286.117088,
+    "ast_hash": "2025e5197b90203e27da88008966988a",
     "semantic_hash": ""
   },
   "src/components/BottomBar/index.ts": {
@@ -306,9 +306,9 @@
     "semantic_hash": "a9fe1931f937546db614f145794174c6"
   },
   "src/components/MultiSession/MultiSession.tsx": {
-    "mtime": 1795663190.966571,
-    "seen": 1795663259.389429,
-    "ast_hash": "c307d63db2e9ba755684e8617ec7bb6c",
+    "mtime": 1795663585.1380992,
+    "seen": 1795665286.117095,
+    "ast_hash": "24083ad968e807300a539cb1338f1d45",
     "semantic_hash": ""
   },
   "src/components/MultiSession/PinLock.tsx": {
@@ -444,8 +444,8 @@
     "semantic_hash": "4e36b15a052a6ffcc10d4c0d148103c2"
   },
   "src/hooks/useMultiSession.ts": {
-    "mtime": 1795663189.4528012,
-    "seen": 1795663259.389451,
+    "mtime": 1795663349.851322,
+    "seen": 1795665286.117114,
     "ast_hash": "7ae77c97c2b16bebc7b9b10322c3576d",
     "semantic_hash": ""
   },

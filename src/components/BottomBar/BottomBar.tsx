@@ -32,6 +32,7 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
   useEffect(() => {
     if (platform !== 'ios') return
 
+    NativeIOSBridge.setTabBarVisible({ visible: true }).catch(() => {})
     // Sincronizar selección hacia Swift al cambiar la pestaña
     NativeIOSBridge.setActiveTab({ tab: activeTool }).catch(() => {})
 
@@ -142,6 +143,10 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
     } catch {
       // ignore
     }
+  }
+
+  if (platform === 'ios') {
+    return null
   }
 
   return (

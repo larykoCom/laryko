@@ -34,7 +34,22 @@ src-tauri/target/
 
 # Capacitor
 ios/App/App/public/
+ios/build/
 android/app/src/main/assets/public/
+android/build/
+android/app/build/
+
+# Mobile & Desktop Binary Builds
+*.ipa
+*.xcarchive
+*.apk
+*.aab
+*.dmg
+*.exe
+*.msi
+*.AppImage
+*.deb
+*.rpm
 
 # Environment
 .env

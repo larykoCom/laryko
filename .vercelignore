@@ -17,6 +17,17 @@ node_modules/
 dist/
 dist-ssr/
 .vercel/
+graphify-out/
+*.ipa
+*.xcarchive
+*.apk
+*.aab
+*.dmg
+*.exe
+*.msi
+*.AppImage
+*.deb
+*.rpm
 
 # 4. Git y Hooks
 .git/
