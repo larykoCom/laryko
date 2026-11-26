@@ -851,6 +851,38 @@ export function App() {
         activeTool={activeTool}
         onSelectTool={setActiveTool}
         platform={appInfo.platform}
+        sessionControls={
+          activeTool === 'sessions' &&
+          multiSession.isUnlocked &&
+          activeSessionObj &&
+          !showSessionManager
+            ? {
+                name: activeSessionObj.name,
+                onBack: () =>
+                  void multiSessionBridge.controlSession(
+                    appInfo.platform,
+                    activeSessionObj.uuid,
+                    'back'
+                  ),
+                onReload: () =>
+                  void multiSessionBridge.controlSession(
+                    appInfo.platform,
+                    activeSessionObj.uuid,
+                    'reload'
+                  ),
+                onSessions: () => setShowSessionManager(true),
+                onSleep: async () => {
+                  await multiSession.sleepSession(activeSessionObj)
+                  setCurrentSessionUuid(null)
+                  setShowSessionManager(true)
+                },
+                onHome: () => {
+                  setShowSessionManager(true)
+                  setActiveTool('home')
+                },
+              }
+            : null
+        }
       />
 
       {/* ── Toast Inteligente Global ── */}

@@ -114,14 +114,14 @@
     "semantic_hash": "1162e1cddd7ea769bcacdd1aa7b4ac72"
   },
   "ios/App/App/SceneDelegate.swift": {
-    "mtime": 1795665236.948429,
-    "seen": 1795665286.1170702,
-    "ast_hash": "89d499ac2167f67680bb572a249f0f56",
+    "mtime": 1795669275.8762343,
+    "seen": 1795669400.28001,
+    "ast_hash": "84b21e00f7c701da26a6aaaaa5b8d228",
     "semantic_hash": ""
   },
   "ios/App/CapApp-SPM/Package.swift": {
-    "mtime": 1795665284.112654,
-    "seen": 1795665286.1170712,
+    "mtime": 1795665771.0997643,
+    "seen": 1795669400.280011,
     "ast_hash": "ec7530133167205945f5821e62a20d20",
     "semantic_hash": "ec7530133167205945f5821e62a20d20"
   },
@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795663349.8003166,
-    "seen": 1795665286.1170838,
-    "ast_hash": "add5460f5f94cc4ca3311136e9c68f5c",
+    "mtime": 1795669366.5009174,
+    "seen": 1795669400.280024,
+    "ast_hash": "3b361d7a95f4e276f66638523873d59e",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -252,9 +252,9 @@
     "semantic_hash": "663747397b4bcefee24cfbdfe19acd25"
   },
   "src/components/BottomBar/BottomBar.tsx": {
-    "mtime": 1795665234.033275,
-    "seen": 1795665286.117088,
-    "ast_hash": "2025e5197b90203e27da88008966988a",
+    "mtime": 1795669365.0061474,
+    "seen": 1795669400.2800279,
+    "ast_hash": "fd779da89f0ab23c2d48836a81e78aef",
     "semantic_hash": ""
   },
   "src/components/BottomBar/index.ts": {

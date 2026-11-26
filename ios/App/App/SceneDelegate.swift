@@ -309,30 +309,6 @@ class SessionWebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
 
-        let navBar = UINavigationBar()
-        navBar.translatesAutoresizingMaskIntoConstraints = false
-        let navItem = UINavigationItem(title: sessionTitle)
-        let sessionsBtn = UIBarButtonItem(
-            image: UIImage(systemName: "square.stack.3d.up"),
-            style: .plain,
-            target: self,
-            action: #selector(handleMinimize)
-        )
-        sessionsBtn.accessibilityLabel = "Cambiar de sesión"
-        let sleepBtn = UIBarButtonItem(
-            image: UIImage(systemName: "moon.zzz"),
-            style: .plain,
-            target: self,
-            action: #selector(handleSleep)
-        )
-        sleepBtn.accessibilityLabel = "Dormir sesión"
-        navItem.leftBarButtonItems = [sessionsBtn, sleepBtn]
-        navItem.rightBarButtonItems = [
-            UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(handleReload)),
-            UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(handleBack))
-        ]
-        navBar.setItems([navItem], animated: false)
-
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -397,16 +373,11 @@ class SessionWebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         spinner.translatesAutoresizingMaskIntoConstraints = false
         spinner.hidesWhenStopped = true
 
-        view.addSubview(navBar)
         view.addSubview(wv)
         view.addSubview(spinner)
 
         NSLayoutConstraint.activate([
-            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            navBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-            wv.topAnchor.constraint(equalTo: navBar.bottomAnchor),
+            wv.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             wv.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             wv.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             wv.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -477,22 +448,14 @@ class SessionWebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
 
-    @objc private func handleBack() {
+    func goBack() {
         if sessionWebView?.canGoBack == true {
             sessionWebView?.goBack()
         }
     }
 
-    @objc private func handleReload() {
+    func reloadPage() {
         sessionWebView?.reload()
-    }
-
-    @objc private func handleSleep() {
-        destroyAndDismiss()
-    }
-
-    @objc private func handleMinimize() {
-        onMinimize?(sessionUuid)
     }
 
     func destroyAndDismiss() {
@@ -536,6 +499,11 @@ class LarykoRootViewController: UIViewController, UITabBarDelegate {
     private var calcTabItem: UITabBarItem!
     private var sessionsTabItem: UITabBarItem!
     private var remindersTabItem: UITabBarItem!
+    private var sessionBackItem: UITabBarItem!
+    private var sessionReloadItem: UITabBarItem!
+    private var sessionListItem: UITabBarItem!
+    private var sessionSleepItem: UITabBarItem!
+    private var sessionHomeItem: UITabBarItem!
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -600,6 +568,41 @@ class LarykoRootViewController: UIViewController, UITabBarDelegate {
         )
         remindersTabItem.tag = 3
 
+        sessionBackItem = UITabBarItem(
+            title: "Atrás",
+            image: UIImage(systemName: "chevron.left"),
+            selectedImage: UIImage(systemName: "chevron.left")
+        )
+        sessionBackItem.tag = 10
+
+        sessionReloadItem = UITabBarItem(
+            title: "Recargar",
+            image: UIImage(systemName: "arrow.clockwise"),
+            selectedImage: UIImage(systemName: "arrow.clockwise")
+        )
+        sessionReloadItem.tag = 11
+
+        sessionListItem = UITabBarItem(
+            title: "Sesiones",
+            image: UIImage(systemName: "square.stack.3d.up"),
+            selectedImage: UIImage(systemName: "square.stack.3d.up.fill")
+        )
+        sessionListItem.tag = 12
+
+        sessionSleepItem = UITabBarItem(
+            title: "Dormir",
+            image: UIImage(systemName: "moon.zzz"),
+            selectedImage: UIImage(systemName: "moon.zzz.fill")
+        )
+        sessionSleepItem.tag = 13
+
+        sessionHomeItem = UITabBarItem(
+            title: "Inicio",
+            image: UIImage(systemName: "house"),
+            selectedImage: UIImage(systemName: "house.fill")
+        )
+        sessionHomeItem.tag = 14
+
         nativeTabBar.items = [homeTabItem, calcTabItem, sessionsTabItem, remindersTabItem]
         nativeTabBar.selectedItem = homeTabItem
 
@@ -612,7 +615,51 @@ class LarykoRootViewController: UIViewController, UITabBarDelegate {
         ])
     }
 
+    private func setSessionBarMode(_ active: Bool, selectTab: String? = nil) {
+        if active {
+            nativeTabBar.setItems(
+                [sessionBackItem, sessionReloadItem, sessionListItem, sessionSleepItem, sessionHomeItem],
+                animated: true
+            )
+            nativeTabBar.selectedItem = sessionListItem
+        } else {
+            nativeTabBar.setItems(
+                [homeTabItem, calcTabItem, sessionsTabItem, remindersTabItem],
+                animated: true
+            )
+            if let tab = selectTab {
+                updateNativeTab(tab: tab)
+            }
+        }
+    }
+
     func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+        switch item.tag {
+        case 10:
+            embeddedSessionVC?.goBack()
+            nativeTabBar.selectedItem = sessionListItem
+            return
+        case 11:
+            embeddedSessionVC?.reloadPage()
+            nativeTabBar.selectedItem = sessionListItem
+            return
+        case 12:
+            minimizeEmbeddedSession()
+            return
+        case 13:
+            embeddedSessionVC?.destroyAndDismiss()
+            setSessionBarMode(false, selectTab: "sessions")
+            return
+        case 14:
+            minimizeEmbeddedSession()
+            setSessionBarMode(false, selectTab: "home")
+            let script = "window.dispatchEvent(new CustomEvent('larykoNativeTabSelected', { detail: { tab: 'home' } }))"
+            bridgeVC.webView?.evaluateJavaScript(script, completionHandler: nil)
+            return
+        default:
+            break
+        }
+
         let tab: String
         switch item.tag {
         case 1: tab = "calculator"
@@ -623,13 +670,10 @@ class LarykoRootViewController: UIViewController, UITabBarDelegate {
         if tab != "sessions" {
             embeddedSessionVC?.view.isHidden = true
         } else if let active = embeddedSessionVC {
-            if nativeTabBar.selectedItem == sessionsTabItem && !active.view.isHidden {
-                active.view.isHidden = true
-            } else {
-                active.view.isHidden = false
-                view.bringSubviewToFront(active.view)
-                view.bringSubviewToFront(nativeTabBar)
-            }
+            active.view.isHidden = false
+            setSessionBarMode(true)
+            view.bringSubviewToFront(active.view)
+            view.bringSubviewToFront(nativeTabBar)
         }
         let script = "window.dispatchEvent(new CustomEvent('larykoNativeTabSelected', { detail: { tab: '\(tab)' } }))"
         bridgeVC.webView?.evaluateJavaScript(script, completionHandler: nil)
@@ -637,6 +681,7 @@ class LarykoRootViewController: UIViewController, UITabBarDelegate {
 
     func minimizeEmbeddedSession() {
         embeddedSessionVC?.view.isHidden = true
+        setSessionBarMode(false, selectTab: "sessions")
     }
 
     func showEmbeddedSession(_ vc: SessionWebViewController) {
@@ -651,13 +696,13 @@ class LarykoRootViewController: UIViewController, UITabBarDelegate {
                 vc.view.topAnchor.constraint(equalTo: view.topAnchor),
                 vc.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
                 vc.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                vc.view.bottomAnchor.constraint(equalTo: nativeTabBar.topAnchor),
+                vc.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             ])
             vc.didMove(toParent: self)
         }
         vc.view.isHidden = false
         embeddedSessionVC = vc
-        nativeTabBar.selectedItem = sessionsTabItem
+        setSessionBarMode(true)
         view.bringSubviewToFront(vc.view)
         view.bringSubviewToFront(nativeTabBar)
     }
@@ -669,6 +714,7 @@ class LarykoRootViewController: UIViewController, UITabBarDelegate {
             current.removeFromParent()
             embeddedSessionVC = nil
         }
+        setSessionBarMode(false, selectTab: "sessions")
     }
 
     func updateNativeTab(tab: String) {

@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Home, Calculator as CalculatorIcon, Layers, Bell } from 'lucide-react'
+import {
+  Home,
+  Calculator as CalculatorIcon,
+  Layers,
+  Bell,
+  ChevronLeft,
+  RotateCw,
+  Moon,
+} from 'lucide-react'
 import { GlassEffectContainer } from '@/components/GlassEffectContainer'
 import { triggerNativeHaptic, NativeIOSBridge } from '@/utils/nativeIOSBridge'
 import type { Platform } from '@/types'
@@ -14,10 +22,20 @@ export interface NavItemConfig {
   badge?: string
 }
 
+export interface BottomBarSessionControls {
+  name: string
+  onBack: () => void
+  onReload: () => void
+  onSessions: () => void
+  onSleep: () => void
+  onHome: () => void
+}
+
 export interface BottomBarProps {
   activeTool: ActiveTool
   onSelectTool: (tool: ActiveTool) => void
   platform?: Platform
+  sessionControls?: BottomBarSessionControls | null
 }
 
 const NAV_ITEMS: NavItemConfig[] = [
@@ -27,7 +45,12 @@ const NAV_ITEMS: NavItemConfig[] = [
   { id: 'reminders', label: 'Agenda', icon: <Bell size={20} strokeWidth={2.2} /> },
 ]
 
-export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: BottomBarProps) {
+export function BottomBar({
+  activeTool,
+  onSelectTool,
+  platform = 'web',
+  sessionControls,
+}: BottomBarProps) {
   // Sincronización bidireccional con UITabBar nativo de Apple en iOS
   useEffect(() => {
     if (platform !== 'ios') return
@@ -147,6 +170,44 @@ export function BottomBar({ activeTool, onSelectTool, platform = 'web' }: Bottom
 
   if (platform === 'ios') {
     return null
+  }
+
+  if (sessionControls) {
+    const sessionItems = [
+      { id: 'back', label: 'Atrás', icon: <ChevronLeft size={20} strokeWidth={2.2} />, onClick: sessionControls.onBack, active: false },
+      { id: 'reload', label: 'Recargar', icon: <RotateCw size={18} strokeWidth={2.2} />, onClick: sessionControls.onReload, active: false },
+      { id: 'sessions', label: 'Sesiones', icon: <Layers size={20} strokeWidth={2.2} />, onClick: sessionControls.onSessions, active: true },
+      { id: 'sleep', label: 'Dormir', icon: <Moon size={18} strokeWidth={2.2} />, onClick: sessionControls.onSleep, active: false },
+      { id: 'home', label: 'Inicio', icon: <Home size={20} strokeWidth={2.2} />, onClick: sessionControls.onHome, active: false },
+    ]
+    return (
+      <div className={styles.bottomBarWrapper}>
+        <GlassEffectContainer
+          as="nav"
+          platform={platform}
+          variant="dock"
+          className={styles.bottomBar}
+          style={{ '--tab-count': sessionItems.length } as React.CSSProperties}
+          aria-label={`Controles de ${sessionControls.name}`}
+        >
+          {sessionItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`${styles.navItem} ${item.active ? styles.navItemActive : ''}`}
+              onClick={() => {
+                triggerNativeHaptic('selection')
+                item.onClick()
+              }}
+              aria-label={item.label}
+            >
+              <span className={styles.navIcon}>{item.icon}</span>
+              <span className={styles.navLabel}>{item.label}</span>
+            </button>
+          ))}
+        </GlassEffectContainer>
+      </div>
+    )
   }
 
   return (
