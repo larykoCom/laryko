@@ -222,10 +222,10 @@
     "semantic_hash": "3cb988f414327db71a5bc8b1b34e29c6"
   },
   "src/App.tsx": {
-    "mtime": 1795642559.2585382,
-    "seen": 1795642899.782803,
-    "ast_hash": "2b2d98d61d094489a3f4ea692e2c9fc8",
-    "semantic_hash": "2b2d98d61d094489a3f4ea692e2c9fc8"
+    "mtime": 1795646906.0724776,
+    "seen": 1795646925.738452,
+    "ast_hash": "35251b0ab288e41d4baf2411ba594168",
+    "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
     "mtime": 1795642082.697014,
@@ -384,9 +384,9 @@
     "semantic_hash": "659b761b74f90faef9a0c9f6fa2fd730"
   },
   "src/components/UserPanel/UserPanel.tsx": {
-    "mtime": 1795646072.3410113,
-    "seen": 1795646092.530781,
-    "ast_hash": "384cc0815235859039429989b3c7ed96",
+    "mtime": 1795646648.927824,
+    "seen": 1795646925.7384782,
+    "ast_hash": "341919d0d13cf1f3fbaac1931306831e",
     "semantic_hash": ""
   },
   "src/components/UserPanel/index.ts": {

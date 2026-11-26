@@ -6,6 +6,8 @@
 
 .calculatorWrapper {
   width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);

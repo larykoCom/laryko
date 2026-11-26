@@ -9,10 +9,6 @@ import {
   Calculator as CalculatorIcon,
   Layers,
   ChevronRight,
-  Sparkles,
-  Heart,
-  ShieldCheck,
-  Cpu,
   Plus,
   Moon,
   Lock,
@@ -230,16 +226,6 @@ export function App() {
             >
               <Bell size={18} strokeWidth={2.2} />
               <span className={styles.sidebarNavLabel}>Agenda</span>
-            </button>
-            <button
-              type="button"
-              className={`${styles.sidebarNavBtn} ${activeTool === 'thanks' ? styles.sidebarNavBtnActive : ''}`}
-              onClick={() => setActiveTool('thanks')}
-              title="Próximamente"
-              data-tooltip="Próximamente"
-            >
-              <Sparkles size={18} strokeWidth={2.2} />
-              <span className={styles.sidebarNavLabel}>Próximamente</span>
             </button>
           </nav>
 
@@ -538,32 +524,6 @@ export function App() {
                     <ChevronRight size={20} strokeWidth={2.2} />
                   </span>
                 </button>
-
-                {/* Próxima herramienta: Coming Soon */}
-                <button
-                  type="button"
-                  className={styles.toolCard}
-                  onClick={() => {
-                    triggerNativeHaptic('selection')
-                    setActiveTool('thanks')
-                  }}
-                  aria-label="Ver agradecimientos y próximas utilidades"
-                >
-                  <div className={styles.toolContent}>
-                    <div className={styles.toolIcon}>
-                      <Sparkles size={24} strokeWidth={2} />
-                    </div>
-                    <div className={styles.toolMeta}>
-                      <span className={styles.toolName}>Más Utilidades (Coming Soon)</span>
-                      <span className={styles.toolDesc}>
-                        Conversor de unidades, notas rápidas y cronómetro en camino.
-                      </span>
-                    </div>
-                  </div>
-                  <span className={styles.toolAction}>
-                    <ChevronRight size={20} strokeWidth={2.2} />
-                  </span>
-                </button>
               </div>
             </section>
 
@@ -610,52 +570,6 @@ export function App() {
             userPanelState={userPanel}
             requestedTab={accountTab}
           />
-        )}
-
-        {activeTool === 'thanks' && (
-          <div className={styles.thanksWrapper}>
-            <div className={styles.thanksIconBadge}>
-              <Heart size={32} strokeWidth={2.4} />
-            </div>
-            <h2 className={styles.title}>¡Gracias por usar Laryko!</h2>
-            <p className={styles.subtitle}>
-              Construyendo herramientas de alto rendimiento, privadas y 100% offline-first.
-            </p>
-
-            <div className={styles.thanksCard}>
-              <div className={styles.thanksCardTitle}>
-                <ShieldCheck size={20} color="#10b981" />
-                <span>Privacidad y Autonomía</span>
-              </div>
-              <p className={styles.thanksCardDesc}>
-                Tus datos nunca salen de tu dispositivo. Todas las operaciones, historial y configuraciones se procesan de forma local.
-              </p>
-            </div>
-
-            <div className={styles.thanksCard}>
-              <div className={styles.thanksCardTitle}>
-                <Cpu size={20} color="#3b82f6" />
-                <span>Próximas Utilidades (Coming Soon)</span>
-              </div>
-              <p className={styles.thanksCardDesc}>
-                • Conversor universal de unidades y divisas<br />
-                • Bloc de notas rápidas con cifrado local<br />
-                • Temporizador y cronómetro de alta precisión
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className={styles.primaryActionBtn}
-              onClick={() => {
-                triggerNativeHaptic('selection')
-                setActiveTool('calculator')
-              }}
-            >
-              <CalculatorIcon size={18} strokeWidth={2.2} />
-              <span>Abrir Calculadora</span>
-            </button>
-          </div>
         )}
       </main>
       </div>

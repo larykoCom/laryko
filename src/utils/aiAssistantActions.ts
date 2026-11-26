@@ -23,7 +23,6 @@ const ALLOWED_TOOLS: ActiveTool[] = [
   'sessions',
   'reminders',
   'account',
-  'thanks',
 ]
 
 const ALLOWED_RECURRENCE: ReminderRecurrence[] = [
