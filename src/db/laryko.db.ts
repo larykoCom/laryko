@@ -37,6 +37,7 @@ export interface WebSession {
   name: string
   url: string
   color: string
+  icon?: string
   order?: number
   status: SessionStatus
   lastActiveAt: Date

@@ -92,6 +92,14 @@ export function sanitizeSessionUrl(rawUrl: string): string | null {
     return null
   }
 
+  // Direct login for Gmail / Google to bypass Workspace marketing redirects
+  if (
+    /^(https?:\/\/)?(www\.)?(gmail\.com|mail\.google\.com)\/?$/i.test(trimmed) ||
+    trimmed.toLowerCase() === 'gmail'
+  ) {
+    return 'https://accounts.google.com/ServiceLogin?service=mail&continue=https://mail.google.com/mail/'
+  }
+
   const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
 
   try {
@@ -106,4 +114,35 @@ export function sanitizeSessionUrl(rawUrl: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * Sanea un SVG o data URL de imagen para usarlo de forma segura como icono.
+ * Elimina scripts, foreignObject, iframes y manejadores on*= para prevenir XSS.
+ */
+export function sanitizeSessionIcon(rawIcon?: string | null): string | undefined {
+  const trimmed = (rawIcon ?? '').trim()
+  if (!trimmed) return undefined
+
+  if (/^<svg[\s\S]*<\/svg>$/i.test(trimmed)) {
+    const cleanSvg = trimmed
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+      .replace(/<(iframe|object|embed|link|meta)[\s\S]*?>/gi, '')
+      .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/(href|xlink:href)\s*=\s*(['"])\s*(javascript|data:text\/html)[^'"]*\2/gi, '')
+    return `data:image/svg+xml;utf8,${encodeURIComponent(cleanSvg)}`
+  }
+
+  if (
+    /^data:image\/(png|jpeg|jpg|webp|gif|x-icon|vnd\.microsoft\.icon);base64,[A-Za-z0-9+/=]+$/i.test(
+      trimmed
+    ) ||
+    /^data:image\/svg\+xml;(utf8|charset=utf-8),/i.test(trimmed) ||
+    /^data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+$/i.test(trimmed)
+  ) {
+    return trimmed
+  }
+
+  return undefined
 }

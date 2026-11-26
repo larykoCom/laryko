@@ -284,7 +284,15 @@ export function App() {
                     title={`${session.name} (${isActive ? 'Activa' : 'Dormida'})`}
                     data-tooltip={`${session.name} · ${isActive ? 'Activa' : 'Dormida'}`}
                   >
-                    {session.name.slice(0, 2).toUpperCase()}
+                    {session.icon ? (
+                      <img
+                        src={session.icon}
+                        alt={session.name}
+                        style={{ width: '68%', height: '68%', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      session.name.slice(0, 2).toUpperCase()
+                    )}
                     <span
                       className={`${styles.sidebarSessionDot} ${
                         isActive ? styles.sidebarSessionDotActive : styles.sidebarSessionDotSleeping

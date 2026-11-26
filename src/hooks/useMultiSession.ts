@@ -5,6 +5,7 @@ import {
   derivePinHash,
   generateSaltHex,
   generateSessionUuid,
+  sanitizeSessionIcon,
   sanitizeSessionUrl,
   verifyPinHash,
 } from '@/utils/pinCrypto'
@@ -23,7 +24,11 @@ export interface QuickTemplate {
 }
 
 export const SESSION_TEMPLATES: QuickTemplate[] = [
-  { name: 'Gmail', url: 'https://mail.google.com', color: '#ea4335' },
+  {
+    name: 'Gmail',
+    url: 'https://accounts.google.com/ServiceLogin?service=mail&continue=https://mail.google.com/mail/',
+    color: '#ea4335',
+  },
   { name: 'Outlook', url: 'https://outlook.live.com', color: '#0078d4' },
   { name: 'GitHub', url: 'https://github.com/login', color: '#8b5cf6' },
   { name: 'Notion', url: 'https://www.notion.so/login', color: '#f59e0b' },
@@ -218,7 +223,13 @@ export function useMultiSession(platform: Platform) {
   }, [])
 
   const createSession = useCallback(
-    async (input: { name: string; url: string; groupId: number; color: string }): Promise<boolean> => {
+    async (input: {
+      name: string
+      url: string
+      groupId: number
+      color: string
+      icon?: string
+    }): Promise<boolean> => {
       const cleanName = input.name.trim()
       const safeUrl = sanitizeSessionUrl(input.url)
       if (!cleanName || !safeUrl) {
@@ -234,15 +245,58 @@ export function useMultiSession(platform: Platform) {
         name: cleanName,
         url: safeUrl,
         color: input.color,
+        icon: sanitizeSessionIcon(input.icon),
         order: maxOrder + 1,
         status: 'sleeping',
         lastActiveAt: new Date(),
         createdAt: new Date(),
       })
       setNotice(null)
+      toast.success(`Contenedor "${cleanName}" creado.`)
       return true
     },
     [sessions]
+  )
+
+  const updateSession = useCallback(
+    async (
+      uuid: string,
+      input: {
+        name: string
+        url: string
+        groupId: number
+        color: string
+        icon?: string
+      }
+    ): Promise<boolean> => {
+      const existing = sessions.find((s) => s.uuid === uuid)
+      if (!existing || existing.id === undefined) return false
+
+      const cleanName = input.name.trim()
+      const safeUrl = sanitizeSessionUrl(input.url)
+      if (!cleanName || !safeUrl) {
+        setNotice('Ingresa un nombre válido y una URL https:// válida.')
+        return false
+      }
+
+      const urlChanged = existing.url !== safeUrl
+      if (urlChanged && existing.status === 'active') {
+        await multiSessionBridge.sleepSession(platform, existing.uuid).catch(() => {})
+      }
+
+      await db.sessions.update(existing.id, {
+        name: cleanName,
+        url: safeUrl,
+        groupId: input.groupId,
+        color: input.color,
+        icon: sanitizeSessionIcon(input.icon),
+        status: urlChanged ? 'sleeping' : existing.status,
+      })
+      setNotice(null)
+      toast.success(`Contenedor "${cleanName}" actualizado.`)
+      return true
+    },
+    [sessions, platform]
   )
 
   const reorderSession = useCallback(
@@ -345,6 +399,7 @@ export function useMultiSession(platform: Platform) {
     lockNow,
     createGroup,
     createSession,
+    updateSession,
     openSession,
     sleepSession,
     sleepAllSessions,

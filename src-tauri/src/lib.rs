@@ -195,6 +195,33 @@ fn resolve_viewport_bounds(
     )
 }
 
+#[cfg(target_os = "macos")]
+fn is_google_domain(host: &str) -> bool {
+    let h = host.to_ascii_lowercase();
+    let google_roots = [
+        "google.com",
+        "gmail.com",
+        "youtube.com",
+        "youtu.be",
+        "googleapis.com",
+        "googleusercontent.com",
+        "withgoogle.com",
+    ];
+    google_roots
+        .iter()
+        .any(|root| h == *root || h.ends_with(&format!(".{}", root)))
+}
+
+#[cfg(target_os = "macos")]
+fn resolve_macos_user_agent(url: &tauri::Url) -> &'static str {
+    let is_google = url.host_str().map(is_google_domain).unwrap_or(false);
+    if is_google {
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15"
+    } else {
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+    }
+}
+
 #[tauri::command]
 async fn open_session_webview(
     app: AppHandle,
@@ -238,6 +265,9 @@ async fn open_session_webview(
         let _ = existing.set_focus();
         return Ok(());
     }
+
+    #[cfg(target_os = "macos")]
+    let macos_ua = resolve_macos_user_agent(&parsed_url);
 
     #[allow(unused_mut)]
     let mut builder = WebviewBuilder::new(&label, WebviewUrl::External(parsed_url))
@@ -309,7 +339,7 @@ async fn open_session_webview(
     {
         builder = builder
             .data_store_identifier(uuid_to_store_id(&session_uuid))
-            .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36");
+            .user_agent(macos_ua);
     }
 
     #[cfg(not(target_os = "macos"))]

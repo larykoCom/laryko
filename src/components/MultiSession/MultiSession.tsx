@@ -12,10 +12,14 @@ import {
   X,
   ArrowUp,
   ArrowDown,
+  Pencil,
+  Upload,
 } from 'lucide-react'
 import { SESSION_TEMPLATES, type useMultiSession } from '@/hooks/useMultiSession'
 import { multiSessionBridge, type SessionBounds } from '@/utils/multiSessionBridge'
 import { triggerNativeHaptic } from '@/utils/nativeIOSBridge'
+import { sanitizeSessionIcon } from '@/utils/pinCrypto'
+import { toast } from '@/utils/toast'
 import type { WebSession } from '@/db/laryko.db'
 import type { Platform } from '@/types'
 import { PinLock } from './PinLock'
@@ -59,6 +63,7 @@ export function MultiSession({
     lockNow,
     createGroup,
     createSession,
+    updateSession,
     openSession,
     sleepSession,
     sleepAllSessions,
@@ -81,10 +86,14 @@ export function MultiSession({
   }, [showAddFormSignal])
 
   // Form states
+  const [editingSessionUuid, setEditingSessionUuid] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [newUrl, setNewUrl] = useState('')
   const [newColor, setNewColor] = useState(COLOR_SWATCHES[0])
   const [newGroupId, setNewGroupId] = useState<number | ''>('')
+  const [newIcon, setNewIcon] = useState<string>('')
+  const [iconPasteInput, setIconPasteInput] = useState('')
+  const iconFileInputRef = useRef<HTMLInputElement | null>(null)
   const [groupName, setGroupName] = useState('')
   const [groupColor, setGroupColor] = useState(COLOR_SWATCHES[1])
 
@@ -208,19 +217,88 @@ export function MultiSession({
     await deleteSession(session)
   }
 
+  const resetSessionForm = () => {
+    setEditingSessionUuid(null)
+    setNewName('')
+    setNewUrl('')
+    setNewColor(COLOR_SWATCHES[0])
+    setNewGroupId('')
+    setNewIcon('')
+    setIconPasteInput('')
+  }
+
+  const startEditSession = (session: WebSession) => {
+    setEditingSessionUuid(session.uuid)
+    setNewName(session.name)
+    setNewUrl(session.url)
+    setNewColor(session.color)
+    setNewGroupId(session.groupId)
+    setNewIcon(session.icon ?? '')
+    setIconPasteInput('')
+    setShowAddSession(true)
+    setShowAddGroup(false)
+  }
+
+  const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (file.size > 512 * 1024) {
+      toast.error('El icono es muy pesado (máx. 512 KB).')
+      return
+    }
+    try {
+      if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+        const text = await file.text()
+        const safe = sanitizeSessionIcon(text)
+        if (!safe) {
+          toast.error('El archivo SVG no es válido.')
+          return
+        }
+        setNewIcon(safe)
+        setIconPasteInput('')
+        toast.success('Icono SVG cargado.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : ''
+        const safe = sanitizeSessionIcon(result)
+        if (!safe) {
+          toast.error('Formato de imagen no compatible (usa SVG, PNG, JPG, WebP o ICO).')
+          return
+        }
+        setNewIcon(safe)
+        setIconPasteInput('')
+        toast.success('Icono cargado.')
+      }
+      reader.readAsDataURL(file)
+    } catch {
+      toast.error('No se pudo leer el archivo de icono.')
+    }
+  }
+
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault()
     const targetGroupId = Number(newGroupId || groups[0]?.id || 1)
-    const ok = await createSession({
-      name: newName,
-      url: newUrl,
-      groupId: targetGroupId,
-      color: newColor,
-    })
+    const ok = editingSessionUuid
+      ? await updateSession(editingSessionUuid, {
+          name: newName,
+          url: newUrl,
+          groupId: targetGroupId,
+          color: newColor,
+          icon: newIcon || undefined,
+        })
+      : await createSession({
+          name: newName,
+          url: newUrl,
+          groupId: targetGroupId,
+          color: newColor,
+          icon: newIcon || undefined,
+        })
     if (ok) {
       triggerNativeHaptic('success')
-      setNewName('')
-      setNewUrl('')
+      resetSessionForm()
       setShowAddSession(false)
     } else {
       triggerNativeHaptic('error')
@@ -402,8 +480,15 @@ export function MultiSession({
         ) : (
           <form className={styles.inlineForm} onSubmit={handleCreateSession}>
             <div className={styles.formHeader}>
-              <span>Agregar Contenedor de Sesión</span>
-              <button type="button" onClick={() => setShowAddSession(false)} className={styles.closeNotice}>
+              <span>{editingSessionUuid ? 'Editar Contenedor de Sesión' : 'Agregar Contenedor de Sesión'}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  resetSessionForm()
+                  setShowAddSession(false)
+                }}
+                className={styles.closeNotice}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -471,8 +556,73 @@ export function MultiSession({
               ))}
             </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div
+                  className={styles.sessionAvatar}
+                  style={{ backgroundColor: newColor, width: 38, height: 38, flexShrink: 0 }}
+                  title="Vista previa del icono"
+                >
+                  {newIcon ? (
+                    <img
+                      src={newIcon}
+                      alt="Icono"
+                      style={{ width: '68%', height: '68%', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    (newName.trim() || 'LX').slice(0, 2).toUpperCase()
+                  )}
+                </div>
+
+                <input
+                  ref={iconFileInputRef}
+                  type="file"
+                  accept=".svg,.png,.jpg,.jpeg,.webp,.ico,image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleIconFileChange}
+                />
+                <button
+                  type="button"
+                  className={styles.miniActionBtn}
+                  onClick={() => iconFileInputRef.current?.click()}
+                >
+                  <Upload size={13} />
+                  <span>Examinar icono (SVG/PNG)</span>
+                </button>
+                {newIcon && (
+                  <button
+                    type="button"
+                    className={styles.miniActionBtn}
+                    onClick={() => {
+                      setNewIcon('')
+                      setIconPasteInput('')
+                    }}
+                  >
+                    <X size={13} />
+                    <span>Quitar icono</span>
+                  </button>
+                )}
+              </div>
+
+              <textarea
+                className={styles.input}
+                rows={2}
+                placeholder="Opcional: pega aquí código <svg>...</svg> personalizado"
+                value={iconPasteInput}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setIconPasteInput(val)
+                  if (!val.trim()) return
+                  const safe = sanitizeSessionIcon(val)
+                  if (safe) {
+                    setNewIcon(safe)
+                  }
+                }}
+              />
+            </div>
+
             <button type="submit" className={styles.primaryBtn}>
-              Guardar Contenedor
+              {editingSessionUuid ? 'Actualizar Contenedor' : 'Guardar Contenedor'}
             </button>
           </form>
         )}
@@ -500,7 +650,15 @@ export function MultiSession({
                     onClick={() => handleOpenSession(session)}
                   >
                     <div className={styles.sessionAvatar} style={{ backgroundColor: session.color }}>
-                      {session.name.slice(0, 2).toUpperCase()}
+                      {session.icon ? (
+                        <img
+                          src={session.icon}
+                          alt={session.name}
+                          style={{ width: '68%', height: '68%', objectFit: 'contain' }}
+                        />
+                      ) : (
+                        session.name.slice(0, 2).toUpperCase()
+                      )}
                     </div>
                     <div className={styles.sessionMeta}>
                       <div className={styles.sessionTitleRow}>
@@ -518,6 +676,15 @@ export function MultiSession({
                   </button>
 
                   <div className={styles.sessionActions}>
+                    <button
+                      type="button"
+                      className={styles.miniActionBtn}
+                      onClick={() => startEditSession(session)}
+                      title="Editar contenedor e icono"
+                      aria-label={`Editar ${session.name}`}
+                    >
+                      <Pencil size={14} />
+                    </button>
                     <button
                       type="button"
                       className={styles.miniActionBtn}

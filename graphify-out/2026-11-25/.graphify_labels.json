@@ -1,7 +1,5 @@
 {
-  "1": "iOS Capacitor Audio & Bridge",
   "2": "Offline DB & Calculator",
-  "3": "Tauri Rust Backend & Tray",
   "4": "Tauri Desktop Configuration",
   "5": "Android MainActivity & Bridge",
   "6": "CI Security & Release Workflows",

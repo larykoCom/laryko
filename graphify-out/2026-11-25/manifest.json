@@ -204,9 +204,9 @@
     "semantic_hash": "13b49a574a9ddf1280c40c7e263c7cf4"
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1795659996.1168458,
-    "seen": 1795660116.4022248,
-    "ast_hash": "550eb57210e331c1ed77b922dac89246",
+    "mtime": 1795661038.1587636,
+    "seen": 1795661533.9712589,
+    "ast_hash": "d819c6657a63ddc9baee8ff29f3bf7cf",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -222,9 +222,9 @@
     "semantic_hash": "3cb988f414327db71a5bc8b1b34e29c6"
   },
   "src/App.tsx": {
-    "mtime": 1795652647.7826757,
-    "seen": 1795659837.206035,
-    "ast_hash": "e12814b4eb142f15d76f5d9f68832a68",
+    "mtime": 1795660533.9965327,
+    "seen": 1795660563.1347709,
+    "ast_hash": "046f61d0fa8c2bf3d56b06bc547124f6",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -444,10 +444,10 @@
     "semantic_hash": "4e36b15a052a6ffcc10d4c0d148103c2"
   },
   "src/hooks/useMultiSession.ts": {
-    "mtime": 1795642676.604952,
-    "seen": 1795642899.7828321,
-    "ast_hash": "d5dac8851abb37025bb8dda9757834a8",
-    "semantic_hash": "d5dac8851abb37025bb8dda9757834a8"
+    "mtime": 1795661506.6354728,
+    "seen": 1795661533.971298,
+    "ast_hash": "5dfd63a2aeaff4501ebf1e3fc1ffa9a7",
+    "semantic_hash": ""
   },
   "src/hooks/useNotificationsCenter.ts": {
     "mtime": 1795638053.6988566,
@@ -540,10 +540,10 @@
     "semantic_hash": "df64fcab5584cd1a95a206b8be2548ef"
   },
   "src/utils/pinCrypto.ts": {
-    "mtime": 1795623333.8563852,
-    "seen": 1795642899.7828429,
-    "ast_hash": "c22561dce01e2517174bdba42ad1bcd7",
-    "semantic_hash": "c22561dce01e2517174bdba42ad1bcd7"
+    "mtime": 1795661504.4970627,
+    "seen": 1795661533.971313,
+    "ast_hash": "18863ba77ae828feeac217c518cccbdd",
+    "semantic_hash": ""
   },
   "src/utils/soundEngine.ts": {
     "mtime": 1795639416.7653775,

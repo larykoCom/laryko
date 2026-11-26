@@ -163,6 +163,7 @@ export interface SyncedWebSession {
   name: string
   url: string
   color: string
+  icon?: string
   order?: number
 }
 

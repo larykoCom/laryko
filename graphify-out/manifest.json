@@ -204,9 +204,9 @@
     "semantic_hash": "13b49a574a9ddf1280c40c7e263c7cf4"
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1795660480.082579,
-    "seen": 1795660563.134768,
-    "ast_hash": "4cf1678f1f5a09db5b415b01496199a9",
+    "mtime": 1795661038.1587636,
+    "seen": 1795661533.9712589,
+    "ast_hash": "d819c6657a63ddc9baee8ff29f3bf7cf",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -222,9 +222,9 @@
     "semantic_hash": "3cb988f414327db71a5bc8b1b34e29c6"
   },
   "src/App.tsx": {
-    "mtime": 1795660533.9965327,
-    "seen": 1795660563.1347709,
-    "ast_hash": "046f61d0fa8c2bf3d56b06bc547124f6",
+    "mtime": 1795661888.6771715,
+    "seen": 1795661939.133843,
+    "ast_hash": "6e76a6b03c78389f44de1f515d4ec8a4",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -306,10 +306,10 @@
     "semantic_hash": "a9fe1931f937546db614f145794174c6"
   },
   "src/components/MultiSession/MultiSession.tsx": {
-    "mtime": 1795629761.5075736,
-    "seen": 1795642899.782815,
-    "ast_hash": "034a510ee203b019d4f4c9b1a64031f5",
-    "semantic_hash": "034a510ee203b019d4f4c9b1a64031f5"
+    "mtime": 1795661930.7018363,
+    "seen": 1795661939.1338549,
+    "ast_hash": "ce5cce3411137cc07fce6fa503717ec7",
+    "semantic_hash": ""
   },
   "src/components/MultiSession/PinLock.tsx": {
     "mtime": 1795623385.6416771,
@@ -408,10 +408,10 @@
     "semantic_hash": "968f50fc82a31833100828aad799d267"
   },
   "src/db/laryko.db.ts": {
-    "mtime": 1795641193.1575356,
-    "seen": 1795642899.782827,
-    "ast_hash": "b5fdd95fcaafdf297e250543dd649fdc",
-    "semantic_hash": "b5fdd95fcaafdf297e250543dd649fdc"
+    "mtime": 1795661804.6650348,
+    "seen": 1795661939.1338701,
+    "ast_hash": "0d23fcd2366dc5f77ce5fb0ebb6282f7",
+    "semantic_hash": ""
   },
   "src/hooks/index.ts": {
     "mtime": 1795641390.1630967,
@@ -444,10 +444,10 @@
     "semantic_hash": "4e36b15a052a6ffcc10d4c0d148103c2"
   },
   "src/hooks/useMultiSession.ts": {
-    "mtime": 1795642676.604952,
-    "seen": 1795642899.7828321,
-    "ast_hash": "d5dac8851abb37025bb8dda9757834a8",
-    "semantic_hash": "d5dac8851abb37025bb8dda9757834a8"
+    "mtime": 1795661869.898754,
+    "seen": 1795661939.133876,
+    "ast_hash": "62900334936a907f52000859613f3080",
+    "semantic_hash": ""
   },
   "src/hooks/useNotificationsCenter.ts": {
     "mtime": 1795638053.6988566,
@@ -540,10 +540,10 @@
     "semantic_hash": "df64fcab5584cd1a95a206b8be2548ef"
   },
   "src/utils/pinCrypto.ts": {
-    "mtime": 1795623333.8563852,
-    "seen": 1795642899.7828429,
-    "ast_hash": "c22561dce01e2517174bdba42ad1bcd7",
-    "semantic_hash": "c22561dce01e2517174bdba42ad1bcd7"
+    "mtime": 1795661807.776791,
+    "seen": 1795661939.133889,
+    "ast_hash": "357fd84e13ca778b9e10b640d5f1a6ad",
+    "semantic_hash": ""
   },
   "src/utils/soundEngine.ts": {
     "mtime": 1795639416.7653775,
@@ -558,9 +558,9 @@
     "semantic_hash": "a047edda46654955550bf99d9ffa64fa"
   },
   "src/utils/vaultCrypto.ts": {
-    "mtime": 1795644985.4785197,
-    "seen": 1795645111.753789,
-    "ast_hash": "603412269b0ab361e91ccda7b58036a2",
+    "mtime": 1795661806.4431694,
+    "seen": 1795661939.133892,
+    "ast_hash": "e006388af8b58a8b848315fe1d85d639",
     "semantic_hash": ""
   },
   "src/vite-env.d.ts": {
