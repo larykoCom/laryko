@@ -2,15 +2,24 @@ package com.laryko;
 
 import android.app.Dialog;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.webkit.CookieManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -33,6 +42,79 @@ public class MultiSessionPlugin extends Plugin {
 
     private final Map<String, Dialog> activeDialogs = new HashMap<>();
     private final Map<String, WebView> activeWebViews = new HashMap<>();
+
+    private static final String DESKTOP_CHROME_UA =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+    private static final String DESKTOP_SPOOF_JS =
+        "try{" +
+        "Object.defineProperty(navigator,'platform',{get:function(){return 'MacIntel';}});" +
+        "Object.defineProperty(navigator,'maxTouchPoints',{get:function(){return 0;}});" +
+        "}catch(e){}";
+
+    private static final String WHATSAPP_AUTO_CONTINUE_JS =
+        "(function(){" +
+        "var tries=0;" +
+        "var t=setInterval(function(){" +
+        "tries++;" +
+        "var els=document.querySelectorAll('a,button');" +
+        "for(var i=0;i<els.length;i++){" +
+        "var txt=(els[i].textContent||'').toLowerCase();" +
+        "if(txt.indexOf('continuar en whatsapp web')!==-1||txt.indexOf('continue to whatsapp web')!==-1){" +
+        "els[i].click();clearInterval(t);return;" +
+        "}" +
+        "}" +
+        "if(tries>20)clearInterval(t);" +
+        "},300);" +
+        "})();";
+
+    private int dp(int value) {
+        return Math.round(TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            value,
+            getContext().getResources().getDisplayMetrics()
+        ));
+    }
+
+    private boolean isDesktopOnlyHost(String host) {
+        if (host == null) return false;
+        String h = host.toLowerCase();
+        return h.contains("whatsapp.com") || h.contains("discord.com") || h.contains("slack.com") || h.contains("notion.so");
+    }
+
+    private LinearLayout createPillGroup() {
+        LinearLayout pill = new LinearLayout(getContext());
+        pill.setOrientation(LinearLayout.HORIZONTAL);
+        pill.setGravity(Gravity.CENTER_VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#161B26"));
+        bg.setCornerRadius(dp(999));
+        bg.setStroke(dp(1), Color.parseColor("#2A3242"));
+        pill.setBackground(bg);
+        pill.setPadding(dp(4), dp(4), dp(4), dp(4));
+        return pill;
+    }
+
+    private TextView createHeaderAction(String label, int textColor, int bgColor, View.OnClickListener onClick) {
+        TextView tv = new TextView(getContext());
+        tv.setText(label);
+        tv.setTextColor(textColor);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        tv.setGravity(Gravity.CENTER);
+        tv.setPadding(dp(12), dp(7), dp(12), dp(7));
+        tv.setSingleLine(true);
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(bgColor);
+        bg.setCornerRadius(dp(999));
+        tv.setBackground(bg);
+
+        tv.setClickable(true);
+        tv.setFocusable(true);
+        tv.setOnClickListener(onClick);
+        return tv;
+    }
 
     @PluginMethod
     public void openSession(PluginCall call) {
@@ -58,16 +140,34 @@ public class MultiSessionPlugin extends Plugin {
 
         getActivity().runOnUiThread(() -> {
             Dialog existing = activeDialogs.get(uuid);
-            if (existing != null && existing.isShowing()) {
+            if (existing != null) {
+                if (!existing.isShowing()) {
+                    existing.show();
+                }
                 JSObject res = new JSObject();
                 res.put("success", true);
                 call.resolve(res);
                 return;
             }
 
-            Dialog dialog = new Dialog(getContext(), android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen);
+            Dialog dialog = new Dialog(getContext(), android.R.style.Theme_Black_NoTitleBar);
+            Window window = dialog.getWindow();
+            if (window != null) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+                window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+                window.setStatusBarColor(Color.parseColor("#0A0A0F"));
+                window.setNavigationBarColor(Color.parseColor("#0A0A0F"));
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    View decor = window.getDecorView();
+                    int flags = decor.getSystemUiVisibility();
+                    flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                    decor.setSystemUiVisibility(flags);
+                }
+            }
+
             LinearLayout root = new LinearLayout(getContext());
             root.setOrientation(LinearLayout.VERTICAL);
+            root.setBackgroundColor(Color.parseColor("#0A0A0F"));
             root.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -76,17 +176,34 @@ public class MultiSessionPlugin extends Plugin {
             LinearLayout toolbar = new LinearLayout(getContext());
             toolbar.setOrientation(LinearLayout.HORIZONTAL);
             toolbar.setGravity(Gravity.CENTER_VERTICAL);
-            toolbar.setBackgroundColor(Color.parseColor("#111827"));
-            toolbar.setPadding(24, 18, 24, 18);
+            toolbar.setBackgroundColor(Color.parseColor("#0A0A0F"));
+            toolbar.setPadding(dp(12), dp(10), dp(12), dp(10));
 
-            Button sleepBtn = new Button(getContext());
-            sleepBtn.setText("Dormir 💤");
-            sleepBtn.setOnClickListener(v -> closeSessionInternal(uuid));
+            LinearLayout leftPill = createPillGroup();
+            TextView sessionsBtn = createHeaderAction(
+                "Sesiones",
+                Color.parseColor("#E5E7EB"),
+                Color.TRANSPARENT,
+                v -> minimizeSessionInternal(uuid)
+            );
+            TextView sleepBtn = createHeaderAction(
+                "Dormir",
+                Color.parseColor("#FCA5A5"),
+                Color.parseColor("#2A161B"),
+                v -> closeSessionInternal(uuid)
+            );
+            leftPill.addView(sessionsBtn);
+            leftPill.addView(sleepBtn);
 
             TextView titleView = new TextView(getContext());
             titleView.setText(title);
             titleView.setTextColor(Color.WHITE);
-            titleView.setPadding(24, 0, 24, 0);
+            titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            titleView.setTypeface(Typeface.DEFAULT_BOLD);
+            titleView.setGravity(Gravity.CENTER);
+            titleView.setSingleLine(true);
+            titleView.setEllipsize(TextUtils.TruncateAt.END);
+            titleView.setPadding(dp(10), 0, dp(10), 0);
             LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
             );
@@ -101,33 +218,106 @@ public class MultiSessionPlugin extends Plugin {
                 WebViewCompat.setProfile(webView, "session_" + uuid);
             }
 
+            boolean desktopOnly = isDesktopOnlyHost(parsed.getHost());
+
             WebSettings settings = webView.getSettings();
             settings.setJavaScriptEnabled(true);
             settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
             settings.setAllowFileAccess(false);
             settings.setAllowContentAccess(false);
+            settings.setSupportMultipleWindows(false);
+            settings.setMediaPlaybackRequiresUserGesture(false);
+            settings.setBuiltInZoomControls(true);
+            settings.setDisplayZoomControls(false);
+
+            if (desktopOnly) {
+                settings.setUserAgentString(DESKTOP_CHROME_UA);
+                settings.setUseWideViewPort(true);
+                settings.setLoadWithOverviewMode(true);
+            } else {
+                settings.setUseWideViewPort(true);
+            }
+
+            CookieManager cookieManager = CookieManager.getInstance();
+            cookieManager.setAcceptCookie(true);
+            cookieManager.setAcceptThirdPartyCookies(webView, true);
 
             webView.setWebViewClient(new WebViewClient() {
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                     String s = request.getUrl().getScheme();
-                    return !"https".equalsIgnoreCase(s) && !"http".equalsIgnoreCase(s);
+                    if (s == null) return true;
+                    String lower = s.toLowerCase();
+                    return !("https".equals(lower) || "http".equals(lower) || "about".equals(lower) || "blob".equals(lower) || "data".equals(lower));
+                }
+
+                @Override
+                public void onPageStarted(WebView view, String pageUrl, android.graphics.Bitmap favicon) {
+                    super.onPageStarted(view, pageUrl, favicon);
+                    if (desktopOnly) {
+                        view.evaluateJavascript(DESKTOP_SPOOF_JS, null);
+                    }
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String pageUrl) {
+                    super.onPageFinished(view, pageUrl);
+                    if (desktopOnly) {
+                        view.evaluateJavascript(DESKTOP_SPOOF_JS, null);
+                        view.evaluateJavascript(WHATSAPP_AUTO_CONTINUE_JS, null);
+                    }
                 }
             });
 
-            Button reloadBtn = new Button(getContext());
-            reloadBtn.setText("↻");
-            reloadBtn.setOnClickListener(v -> webView.reload());
+            LinearLayout rightPill = createPillGroup();
+            TextView backBtn = createHeaderAction(
+                "‹",
+                Color.parseColor("#E5E7EB"),
+                Color.TRANSPARENT,
+                v -> {
+                    if (webView.canGoBack()) {
+                        webView.goBack();
+                    }
+                }
+            );
+            backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+            TextView reloadBtn = createHeaderAction(
+                "↻",
+                Color.parseColor("#E5E7EB"),
+                Color.TRANSPARENT,
+                v -> webView.reload()
+            );
+            reloadBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            rightPill.addView(backBtn);
+            rightPill.addView(reloadBtn);
 
-            toolbar.addView(sleepBtn);
+            toolbar.addView(leftPill);
             toolbar.addView(titleView);
-            toolbar.addView(reloadBtn);
+            toolbar.addView(rightPill);
+
+            View divider = new View(getContext());
+            divider.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1)
+            ));
+            divider.setBackgroundColor(Color.parseColor("#1F2937"));
 
             root.addView(toolbar);
+            root.addView(divider);
             root.addView(webView);
 
             dialog.setContentView(root);
-            dialog.setOnDismissListener(d -> closeSessionInternal(uuid));
+            dialog.setOnKeyListener((d, keyCode, event) -> {
+                if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
+                    if (webView.canGoBack()) {
+                        webView.goBack();
+                    } else {
+                        minimizeSessionInternal(uuid);
+                    }
+                    return true;
+                }
+                return false;
+            });
 
             activeDialogs.put(uuid, dialog);
             activeWebViews.put(uuid, webView);
@@ -139,6 +329,13 @@ public class MultiSessionPlugin extends Plugin {
             res.put("success", true);
             call.resolve(res);
         });
+    }
+
+    private void minimizeSessionInternal(String uuid) {
+        Dialog d = activeDialogs.get(uuid);
+        if (d != null && d.isShowing()) {
+            d.hide();
+        }
     }
 
     private void closeSessionInternal(String uuid) {
