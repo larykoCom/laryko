@@ -5,7 +5,6 @@ import {
   Monitor,
   Terminal,
   HelpCircle,
-  Zap,
   Home,
   Calculator as CalculatorIcon,
   Layers,
@@ -175,9 +174,11 @@ export function App() {
       >
         <div className={styles.sidebarTopSection}>
           <div className={styles.sidebarBrand}>
-            <div className={styles.sidebarBrandIcon}>
-              <Zap size={18} strokeWidth={2.5} />
-            </div>
+            <img
+              src="/favicon.svg"
+              alt="Laryko"
+              style={{ width: 32, height: 32, borderRadius: 8, display: 'block', flexShrink: 0 }}
+            />
             <div className={styles.sidebarBrandText}>
               <div className={styles.sidebarBrandTitle}>Laryko</div>
               <div className={styles.sidebarBrandVersion}>v{appInfo.version}</div>
@@ -442,7 +443,11 @@ export function App() {
             {/* ── Brand Header ── */}
             <header className={styles.header}>
               <div className={styles.logo}>
-                <Zap size={38} strokeWidth={2.5} />
+                <img
+                  src="/favicon.svg"
+                  alt="Laryko"
+                  style={{ width: 56, height: 56, borderRadius: 12, display: 'block' }}
+                />
               </div>
               <h1 className={styles.title}>Laryko</h1>
               <p className={styles.subtitle}>Hub de Herramientas</p>
