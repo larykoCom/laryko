@@ -1,23 +1,24 @@
 # Graph Report - laryko  (2026-11-26)
 
 ## Corpus Check
-- 105 files · ~66,837 words
+- 105 files · ~67,266 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 55 file(s) not represented in the graph (top: .css 19, .xml 13, (none) 8)
 - WARNING: 55 of 243 files seen (23%) have no supported extractor and are missing from this graph entirely. It may look complete while representing only part of the codebase.
 
 ## Summary
-- 864 nodes · 1449 edges · 64 communities (41 shown, 23 thin omitted)
+- 879 nodes · 1473 edges · 65 communities (41 shown, 24 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 15 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `27f74289`
+- Built from commit: `00443fd0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - components/index.ts
+- MainActivity.java
 - Offline DB & Calculator
 - lib.rs
 - Tauri Desktop Configuration
@@ -75,9 +76,9 @@
 5. `scripts` - 18 edges
 6. `LarykoRootViewController` - 17 edges
 7. `compilerOptions` - 17 edges
-8. `playNotificationSound()` - 15 edges
-9. `lucide-react` - 15 edges
-10. `NativeIOSBridge` - 14 edges
+8. `MultiSessionPlugin` - 16 edges
+9. `playNotificationSound()` - 15 edges
+10. `lucide-react` - 15 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Añadido (Added)` --references--> `NativeIOSBridge`  [INFERRED]
@@ -86,23 +87,23 @@
   AGENTS.md → src/utils/nativeIOSBridge.ts
 - `🔄 Sistema Integrado de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
   DEVELOPMENT.md → src/hooks/useAppUpdater.ts
-- `🚀 Stack Tecnológico` --references--> `useOnlineStatus()`  [INFERRED]
-  DEVELOPMENT.md → src/hooks/useOnlineStatus.ts
 - `3. Sistema Integrado de Verificación de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
   prompt.md → src/hooks/useAppUpdater.ts
+- `🚀 Stack Tecnológico` --references--> `useOnlineStatus()`  [INFERRED]
+  DEVELOPMENT.md → src/hooks/useOnlineStatus.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (64 total, 23 thin omitted)
+## Communities (65 total, 24 thin omitted)
 
 ### Community 0 - "components/index.ts"
-Cohesion: 0.06
+Cohesion: 0.05
 Nodes (30): lucide-react, AlarmOverlay(), AlarmOverlayProps, ActiveTool, BottomBar(), BottomBarProps, BottomBarSessionControls, NAV_ITEMS (+22 more)
 
 ### Community 2 - "Offline DB & Calculator"
-Cohesion: 0.09
-Nodes (37): dexie-react-hooks, react, FilterTab, NotificationsCenter(), NotificationsCenterProps, defaultDateTimeLocal(), Reminders(), RemindersProps (+29 more)
+Cohesion: 0.08
+Nodes (38): 🚀 Stack Tecnológico, dexie-react-hooks, react, FilterTab, NotificationsCenter(), NotificationsCenterProps, defaultDateTimeLocal(), Reminders() (+30 more)
 
 ### Community 3 - "lib.rs"
 Cohesion: 0.07
@@ -121,8 +122,8 @@ Cohesion: 0.10
 Nodes (18): 1. Stack Tecnológico (Single Web Codebase + CSS Nativo + Offline-First), 2. Identificadores, Dominio y Nombres de Artefactos Fijos, 3. Sistema Integrado de Verificación de Actualizaciones (`useAppUpdater`), 4. Entregables para este primer paso ("Hola Mundo"), GlassEffectContainer, GlassEffectContainerProps, UpdateModal(), UpdateModalProps (+10 more)
 
 ### Community 8 - "useMultiSession.ts"
-Cohesion: 0.23
-Nodes (8): COLOR_SWATCHES, WebSession, QuickTemplate, SESSION_TEMPLATES, multiSessionBridge, MultiSessionCapacitor, SessionBounds, sanitizeSessionIcon()
+Cohesion: 0.24
+Nodes (7): COLOR_SWATCHES, WebSession, QuickTemplate, SESSION_TEMPLATES, multiSessionBridge, MultiSessionCapacitor, SessionBounds
 
 ### Community 10 - "getVersion"
 Cohesion: 0.29
@@ -146,15 +147,15 @@ Nodes (18): scripts, audit, build, build:android, build:android:apk, cap:android
 
 ### Community 15 - "🛠️ Guía de Desarrollo de Laryko"
 Cohesion: 0.09
-Nodes (21): 💻 Desarrollo Local, Ejecutar en Escritorio con Tauri (macOS/Windows/Linux), Ejecutar en la Web (Vite Dev Server), 🏗️ Estructura del Repositorio, 🛠️ Guía de Desarrollo de Laryko, 🏷️ Identificadores y Dominio, Inicializar y Sincronizar Plataformas Móviles (Capacitor), Instalación (+13 more)
+Nodes (20): 💻 Desarrollo Local, Ejecutar en Escritorio con Tauri (macOS/Windows/Linux), Ejecutar en la Web (Vite Dev Server), 🏗️ Estructura del Repositorio, 🛠️ Guía de Desarrollo de Laryko, 🏷️ Identificadores y Dominio, Inicializar y Sincronizar Plataformas Móviles (Capacitor), Instalación (+12 more)
 
 ### Community 16 - "Version & Copyright Sync"
 Cohesion: 0.12
 Nodes (11): args, currentYear, __dirname, isCheck, pkg, pkgPath, rootDir, semverParts (+3 more)
 
 ### Community 18 - "dependencies"
-Cohesion: 0.12
-Nodes (17): dependencies, @capacitor/android@^8.6.2, @capacitor/ios@^8.6.2, @capacitor/network@8.0.1, dexie@4.4.7, dexie-react-hooks@4.4.0, lucide-react@^1.73.0, react@19.3.1 (+9 more)
+Cohesion: 0.13
+Nodes (15): dependencies, @capacitor/android@^8.6.2, @capacitor/ios@^8.6.2, @capacitor/network@8.0.1, dexie@4.4.7, dexie-react-hooks@4.4.0, lucide-react@^1.73.0, react@19.3.1 (+7 more)
 
 ### Community 20 - "name Module"
 Cohesion: 0.26
@@ -169,12 +170,12 @@ Cohesion: 0.22
 Nodes (9): name, runs-on, steps, GITHUB_TOKEN, VITE_APP_VERSION, VITE_GITHUB_REPO, VITE_IS_APP_STORE, build-web (+1 more)
 
 ### Community 23 - "package.json"
-Cohesion: 0.13
-Nodes (19): devDependencies, @tauri-apps/cli@2.12.4, @types/react@19.3.0, @types/react-dom@19.3.0, typescript@7.0.2, vite@8.3.8, vite-plugin-pwa@2.0.0, @vitejs/plugin-react@6.3.0 (+11 more)
+Cohesion: 0.12
+Nodes (21): react-dom@19.3.1, devDependencies, @tauri-apps/cli@2.12.4, @types/react@19.3.0, @types/react-dom@19.3.0, typescript@7.0.2, vite@8.3.8, vite-plugin-pwa@2.0.0 (+13 more)
 
 ### Community 24 - "useAiAssistant.ts"
-Cohesion: 0.15
-Nodes (14): AiAssistant(), AiAssistantProps, QUICK_PROMPTS, AssistantChatMessage, resolveActiveProvider(), useAiAssistant(), UseAiAssistantParams, ALLOWED_RECURRENCE (+6 more)
+Cohesion: 0.14
+Nodes (16): AiAssistant(), AiAssistantProps, QUICK_PROMPTS, ReminderRecurrence, AssistantChatMessage, resolveActiveProvider(), useAiAssistant(), UseAiAssistantParams (+8 more)
 
 ### Community 25 - "tsconfig.node.json Module"
 Cohesion: 0.25
@@ -197,8 +198,8 @@ Cohesion: 0.40
 Nodes (5): publish-release, name, needs, runs-on, steps
 
 ### Community 30 - "useUserPanel.ts"
-Cohesion: 0.11
-Nodes (26): UserPanel(), UserPanelProps, UserPanelTab, UserPreferences, DEFAULT_PREFS, useUserPanel(), NativeIOSBridgePlugin, AiProviderId (+18 more)
+Cohesion: 0.17
+Nodes (23): UserPanel(), UserPanelProps, UserPanelTab, DEFAULT_PREFS, useUserPanel(), decodePairingToken(), decryptSyncBundle(), decryptVault() (+15 more)
 
 ### Community 32 - "AppHandle"
 Cohesion: 0.28
@@ -229,8 +230,8 @@ Cohesion: 0.05
 Nodes (10): AudioToolbox, Capacitor, LarykoRootViewController, MainViewController, MultiSessionPlugin, NativeIOSBridge, SessionWebViewController, resolve_macos_user_agent() (+2 more)
 
 ### Community 54 - "pinCrypto.ts"
-Cohesion: 0.47
-Nodes (8): useMultiSession(), bytesToHex(), constantTimeEqual(), derivePinHash(), generateSaltHex(), generateSessionUuid(), hexToBytes(), verifyPinHash()
+Cohesion: 0.36
+Nodes (10): MultiSessionProps, useMultiSession(), bytesToHex(), constantTimeEqual(), derivePinHash(), generateSaltHex(), generateSessionUuid(), hexToBytes() (+2 more)
 
 ### Community 57 - "execute_neon_sql"
 Cohesion: 0.20
@@ -261,23 +262,23 @@ Cohesion: 0.22
 Nodes (6): extract_unread_count_from_title(), open_external_url(), open_session_webview(), resolve_viewport_bounds(), set_session_bounds(), uuid_to_store_id()
 
 ## Knowledge Gaps
-- **4 isolated node(s):** `AudioToolbox`, `WebKit`, `PackageDescription`, `laryko`
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 410 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **23 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **4 isolated node(s):** `PackageDescription`, `laryko`, `AudioToolbox`, `WebKit`
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 417 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **24 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `react` connect `Offline DB & Calculator` to `components/index.ts`, `types/index.ts`, `useMultiSession.ts`, `App.tsx`, `getVersion`, `dependencies`, `package.json`, `useAiAssistant.ts`, `useUserPanel.ts`, `toast.ts`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
-- **What connects `AudioToolbox`, `WebKit`, `PackageDescription` to the rest of the system?**
+  _High betweenness centrality (0.041) - this node is a cross-community bridge._
+- **What connects `PackageDescription`, `laryko`, `AudioToolbox` to the rest of the system?**
   _4 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `components/index.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.06370543541788427 - nodes in this community are weakly interconnected._
-- **Why does `lucide-react` connect `components/index.ts` to `Offline DB & Calculator`, `types/index.ts`, `useMultiSession.ts`, `App.tsx`, `dependencies`, `package.json`, `useAiAssistant.ts`, `useUserPanel.ts`, `toast.ts`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
+  _Cohesion score 0.053613053613053616 - nodes in this community are weakly interconnected._
+- **Why does `resolve_macos_user_agent()` connect `SessionWebViewController` to `resolve_viewport_bounds`, `lib.rs`?**
+  _High betweenness centrality (0.031) - this node is a cross-community bridge._
 - **Should `Offline DB & Calculator` be split into smaller, more focused modules?**
-  _Cohesion score 0.08821548821548822 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08441558441558442 - nodes in this community are weakly interconnected._
 - **Should `lib.rs` be split into smaller, more focused modules?**
   _Cohesion score 0.07126436781609195 - nodes in this community are weakly interconnected._
 - **Should `Tauri Desktop Configuration` be split into smaller, more focused modules?**

@@ -135,7 +135,8 @@ export function useReminders(
           await notificationsBridge.sendNative(
             platform,
             `🚨 ALARMA: ${item.title}`,
-            item.notes || 'Alarma activa en Laryko'
+            item.notes || 'Alarma activa en Laryko',
+            true
           )
         }
         await db.reminders.update(item.id, {
@@ -210,13 +211,15 @@ export function useReminders(
       }
 
       const now = new Date()
+      const uuid = generateSessionUuid()
+      const wantsNative = input.notifyNative || input.isAlarm
       await db.reminders.add({
-        uuid: generateSessionUuid(),
+        uuid,
         title: cleanTitle,
         notes: input.notes.trim(),
         dueAt: input.dueAt,
         completed: false,
-        notifyNative: input.notifyNative || input.isAlarm,
+        notifyNative: wantsNative,
         notifyEmail: input.notifyEmail,
         persistent: input.persistent,
         isAlarm: input.isAlarm,
@@ -231,6 +234,16 @@ export function useReminders(
         updatedAt: now,
       })
 
+      if (wantsNative && input.dueAt.getTime() > Date.now()) {
+        await notificationsBridge.scheduleNative(platform, {
+          id: uuid,
+          title: input.isAlarm ? `🚨 ALARMA: ${cleanTitle}` : `⏰ ${cleanTitle}`,
+          body: input.notes.trim() || (input.isAlarm ? 'Alarma activa en Laryko' : 'Recordatorio programado en Laryko'),
+          triggerAtMs: input.dueAt.getTime(),
+          isAlarm: input.isAlarm,
+        })
+      }
+
       await markPendingSync()
       await checkDue()
       return true
@@ -242,6 +255,7 @@ export function useReminders(
     async (alarm: ReminderItem) => {
       stopAlarmLoop()
       setActiveAlarm(null)
+      await notificationsBridge.cancelNative(platform, alarm.uuid)
       if (alarm.id !== undefined) {
         if (alarm.recurrence && alarm.recurrence !== 'none') {
           const nextDue = computeNextDueAt(
@@ -258,6 +272,15 @@ export function useReminders(
             lastNotifiedAt: null,
             updatedAt: new Date(),
           })
+          if (alarm.notifyNative || alarm.isAlarm) {
+            await notificationsBridge.scheduleNative(platform, {
+              id: alarm.uuid,
+              title: `🚨 ALARMA: ${alarm.title}`,
+              body: alarm.notes || 'Alarma activa en Laryko',
+              triggerAtMs: nextDue.getTime(),
+              isAlarm: true,
+            })
+          }
         } else {
           await db.reminders.update(alarm.id, {
             completed: true,
@@ -271,24 +294,32 @@ export function useReminders(
       )
       await markPendingSync()
     },
-    [markPendingSync]
+    [platform, markPendingSync]
   )
 
   const snoozeAlarm = useCallback(
     async (alarm: ReminderItem, minutes = 5) => {
       stopAlarmLoop()
       setActiveAlarm(null)
+      const nextDue = new Date(Date.now() + minutes * 60_000)
       if (alarm.id !== undefined) {
         await db.reminders.update(alarm.id, {
-          dueAt: new Date(Date.now() + minutes * 60_000),
+          dueAt: nextDue,
           notifiedNative: false,
           lastNotifiedAt: null,
           updatedAt: new Date(),
         })
       }
+      await notificationsBridge.scheduleNative(platform, {
+        id: alarm.uuid,
+        title: `🚨 ALARMA: ${alarm.title}`,
+        body: alarm.notes || 'Alarma pospuesta en Laryko',
+        triggerAtMs: nextDue.getTime(),
+        isAlarm: true,
+      })
       await markPendingSync()
     },
-    [markPendingSync]
+    [platform, markPendingSync]
   )
 
   const updateReminder = useCallback(
@@ -340,6 +371,17 @@ export function useReminders(
         updatedAt: new Date(),
       })
 
+      await notificationsBridge.cancelNative(platform, item.uuid)
+      if (isFuture && (patch.notifyNative || patch.isAlarm)) {
+        await notificationsBridge.scheduleNative(platform, {
+          id: item.uuid,
+          title: patch.isAlarm ? `🚨 ALARMA: ${cleanTitle}` : `⏰ ${cleanTitle}`,
+          body: patch.notes.trim() || (patch.isAlarm ? 'Alarma activa en Laryko' : 'Recordatorio programado en Laryko'),
+          triggerAtMs: patch.dueAt.getTime(),
+          isAlarm: patch.isAlarm,
+        })
+      }
+
       await markPendingSync()
       await checkDue()
       return true
@@ -357,6 +399,9 @@ export function useReminders(
       } else if (nextCompleted && item.isAlarm) {
         stopAlarmLoop()
       }
+      if (nextCompleted) {
+        await notificationsBridge.cancelNative(platform, item.uuid)
+      }
       if (nextCompleted && item.recurrence && item.recurrence !== 'none') {
         const nextDue = computeNextDueAt(
           item.dueAt,
@@ -372,6 +417,15 @@ export function useReminders(
           lastNotifiedAt: null,
           updatedAt: new Date(),
         })
+        if (item.notifyNative || item.isAlarm) {
+          await notificationsBridge.scheduleNative(platform, {
+            id: item.uuid,
+            title: item.isAlarm ? `🚨 ALARMA: ${item.title}` : `⏰ ${item.title}`,
+            body: item.notes || 'Recordatorio programado en Laryko',
+            triggerAtMs: nextDue.getTime(),
+            isAlarm: Boolean(item.isAlarm),
+          })
+        }
       } else {
         await db.reminders.update(item.id, {
           completed: nextCompleted,
@@ -386,7 +440,7 @@ export function useReminders(
       }
       await markPendingSync()
     },
-    [markPendingSync]
+    [platform, markPendingSync]
   )
 
   const deleteReminder = useCallback(
@@ -398,6 +452,7 @@ export function useReminders(
           setActiveAlarm(null)
         }
       }
+      await notificationsBridge.cancelNative(platform, item.uuid)
       await db.reminders.delete(item.id)
       const linked = await db.notifications.where('reminderUuid').equals(item.uuid).toArray()
       await Promise.all(
@@ -405,7 +460,7 @@ export function useReminders(
       )
       await markPendingSync()
     },
-    [markPendingSync]
+    [platform, markPendingSync]
   )
 
   const clearCompleted = useCallback(async () => {

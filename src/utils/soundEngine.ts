@@ -1,4 +1,14 @@
+import { Capacitor } from '@capacitor/core'
 import { db, type NotificationSoundPreset } from '@/db/laryko.db'
+import { NativeAndroidBridge, NativeIOSBridge } from '@/utils/nativeIOSBridge'
+
+function getNativeSoundBridge() {
+  if (!Capacitor.isNativePlatform()) return null
+  const p = Capacitor.getPlatform()
+  if (p === 'ios') return NativeIOSBridge
+  if (p === 'android') return NativeAndroidBridge
+  return null
+}
 
 let sharedAudioCtx: AudioContext | null = null
 let activeAlarmTimer: ReturnType<typeof setInterval> | null = null
@@ -75,6 +85,16 @@ export async function playNotificationSound(
     if (played) return
   }
 
+  const nativeBridge = getNativeSoundBridge()
+  if (nativeBridge) {
+    try {
+      const res = await nativeBridge.playNativeNotificationSound({ volume: volumePercent })
+      if (res.success) return
+    } catch {
+      // fallback a Web Audio
+    }
+  }
+
   const ctx = getAudioContext()
   if (!ctx) return
 
@@ -115,6 +135,10 @@ export async function playNotificationSound(
 }
 
 export function stopAlarmLoop(): void {
+  const nativeBridge = getNativeSoundBridge()
+  if (nativeBridge) {
+    void nativeBridge.stopNativeAlarm().catch(() => {})
+  }
   if (activeAlarmTimer) {
     clearInterval(activeAlarmTimer)
     activeAlarmTimer = null
@@ -153,6 +177,16 @@ export async function startAlarmLoop(
       } catch {
         stopAlarmLoop()
       }
+    }
+  }
+
+  const nativeBridge = getNativeSoundBridge()
+  if (nativeBridge && preset !== 'custom') {
+    try {
+      const res = await nativeBridge.startNativeAlarm({ volume: volumePercent })
+      if (res.success) return
+    } catch {
+      // fallback a Web Audio
     }
   }
 

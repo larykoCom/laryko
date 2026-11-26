@@ -36,14 +36,14 @@
     "semantic_hash": "fbaf7cc870c663eb52dcf218531c439d"
   },
   "android/app/src/main/java/com/laryko/MainActivity.java": {
-    "mtime": 1795623586.5954998,
-    "seen": 1795642899.782762,
-    "ast_hash": "b55a3a4923c030a1646b36ad13e27991",
-    "semantic_hash": "b55a3a4923c030a1646b36ad13e27991"
+    "mtime": 1795670875.931589,
+    "seen": 1795670950.562577,
+    "ast_hash": "ed2b92e2c3673c4e1e2f92bd842edbce",
+    "semantic_hash": ""
   },
   "android/app/src/main/java/com/laryko/MultiSessionPlugin.java": {
-    "mtime": 1795670484.7835207,
-    "seen": 1795670507.023435,
+    "mtime": 1795670535.549757,
+    "seen": 1795670950.562578,
     "ast_hash": "fd3d1f3adada366e305d988bb928f85d",
     "semantic_hash": ""
   },
@@ -114,9 +114,9 @@
     "semantic_hash": "1162e1cddd7ea769bcacdd1aa7b4ac72"
   },
   "ios/App/App/SceneDelegate.swift": {
-    "mtime": 1795669275.8762343,
-    "seen": 1795669400.28001,
-    "ast_hash": "84b21e00f7c701da26a6aaaaa5b8d228",
+    "mtime": 1795670850.549422,
+    "seen": 1795670950.56259,
+    "ast_hash": "7f8ddc256ff647e94b88ee6874c1be04",
     "semantic_hash": ""
   },
   "ios/App/CapApp-SPM/Package.swift": {
@@ -474,10 +474,10 @@
     "semantic_hash": "e41643f4f00ad61ac5bf388e6fd3b407"
   },
   "src/hooks/useReminders.ts": {
-    "mtime": 1795641152.694394,
-    "seen": 1795642899.782835,
-    "ast_hash": "b2e7c10017720cfe2a89c40f8053d635",
-    "semantic_hash": "b2e7c10017720cfe2a89c40f8053d635"
+    "mtime": 1795670933.7873693,
+    "seen": 1795670950.562641,
+    "ast_hash": "235cb1bd66cd5c51351229adc58b71e3",
+    "semantic_hash": ""
   },
   "src/hooks/useUserPanel.ts": {
     "mtime": 1795646064.881126,
@@ -528,16 +528,16 @@
     "semantic_hash": ""
   },
   "src/utils/nativeIOSBridge.ts": {
-    "mtime": 1795122718.903805,
-    "seen": 1795642899.7828422,
-    "ast_hash": "a6f43c1c48d1d7c1c8a87aea00a640b8",
-    "semantic_hash": "a6f43c1c48d1d7c1c8a87aea00a640b8"
+    "mtime": 1795670901.4727137,
+    "seen": 1795670950.562649,
+    "ast_hash": "949e1d5f92542e9ca108296b3eb4a43f",
+    "semantic_hash": ""
   },
   "src/utils/notificationsBridge.ts": {
-    "mtime": 1795640213.531918,
-    "seen": 1795642899.7828429,
-    "ast_hash": "df64fcab5584cd1a95a206b8be2548ef",
-    "semantic_hash": "df64fcab5584cd1a95a206b8be2548ef"
+    "mtime": 1795670902.6758647,
+    "seen": 1795670950.562649,
+    "ast_hash": "1c6d373f718784f1f2150c403a0ef3a3",
+    "semantic_hash": ""
   },
   "src/utils/pinCrypto.ts": {
     "mtime": 1795661807.776791,
@@ -546,10 +546,10 @@
     "semantic_hash": ""
   },
   "src/utils/soundEngine.ts": {
-    "mtime": 1795639416.7653775,
-    "seen": 1795642899.7828438,
-    "ast_hash": "2c676b761c636cab0f7143eb5fd9235b",
-    "semantic_hash": "2c676b761c636cab0f7143eb5fd9235b"
+    "mtime": 1795670927.8798413,
+    "seen": 1795670950.562651,
+    "ast_hash": "89e9836b45c058264cd736c850ef3dc6",
+    "semantic_hash": ""
   },
   "src/utils/toast.ts": {
     "mtime": 1795642521.3895285,
@@ -1125,6 +1125,18 @@
     "mtime": 1794808501.6256676,
     "seen": 1795643375.2602031,
     "ast_hash": "67ee8c7e14af66c35e45cb34a9549d22",
+    "semantic_hash": ""
+  },
+  "android/app/src/main/java/com/laryko/AlarmReceiver.java": {
+    "mtime": 1795670873.194334,
+    "seen": 1795670950.5625758,
+    "ast_hash": "ee77d038205ac093dd64526c81cbdba9",
+    "semantic_hash": ""
+  },
+  "android/app/src/main/java/com/laryko/NativeAndroidBridge.java": {
+    "mtime": 1795670874.570426,
+    "seen": 1795670950.5625799,
+    "ast_hash": "cee2012ec1815919d46d944dc24e3ff7",
     "semantic_hash": ""
   },
   "pnpm-lock.yaml": {

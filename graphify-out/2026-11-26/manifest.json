@@ -24,8 +24,8 @@
     "semantic_hash": "99c44b4fa6fda04be23a81af5ffcf67c"
   },
   "android/app/capacitor.build.gradle": {
-    "mtime": 1795231843.064149,
-    "seen": 1795642899.78276,
+    "mtime": 1795669979.835993,
+    "seen": 1795670507.023432,
     "ast_hash": "6a1d10f6ec187c47a47a6db8f32a215d",
     "semantic_hash": "6a1d10f6ec187c47a47a6db8f32a215d"
   },
@@ -42,10 +42,10 @@
     "semantic_hash": "b55a3a4923c030a1646b36ad13e27991"
   },
   "android/app/src/main/java/com/laryko/MultiSessionPlugin.java": {
-    "mtime": 1795623466.8737392,
-    "seen": 1795642899.782763,
-    "ast_hash": "85b79c6c6fd18e466921f11db3efd782",
-    "semantic_hash": "85b79c6c6fd18e466921f11db3efd782"
+    "mtime": 1795670484.7835207,
+    "seen": 1795670507.023435,
+    "ast_hash": "fd3d1f3adada366e305d988bb928f85d",
+    "semantic_hash": ""
   },
   "android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java": {
     "mtime": 1794507063.0,
@@ -60,8 +60,8 @@
     "semantic_hash": "682315a426653617c6a74fc12bef55b6"
   },
   "android/capacitor.settings.gradle": {
-    "mtime": 1795231843.0640504,
-    "seen": 1795642899.7827652,
+    "mtime": 1795669979.8358905,
+    "seen": 1795670507.023437,
     "ast_hash": "666bdf7ab6b095ba8f5def6aae476509",
     "semantic_hash": "666bdf7ab6b095ba8f5def6aae476509"
   },
@@ -252,8 +252,8 @@
     "semantic_hash": "663747397b4bcefee24cfbdfe19acd25"
   },
   "src/components/BottomBar/BottomBar.tsx": {
-    "mtime": 1795669365.0061474,
-    "seen": 1795669400.2800279,
+    "mtime": 1795669434.5088425,
+    "seen": 1795670507.023463,
     "ast_hash": "fd779da89f0ab23c2d48836a81e78aef",
     "semantic_hash": ""
   },

@@ -26,7 +26,50 @@ export interface NativeIOSBridgePlugin {
   setBadge(options: { count: number }): Promise<{ success: boolean }>
   setActiveTab(options: { tab: string }): Promise<{ success: boolean }>
   setTabBarVisible(options: { visible: boolean }): Promise<{ success: boolean }>
+  requestNotificationPermission(): Promise<{ granted: boolean }>
+  sendNativeNotification(options: { id?: string; title: string; body: string; isAlarm?: boolean }): Promise<{ success: boolean }>
+  scheduleNativeNotification(options: { id: string; title: string; body: string; triggerAtMs: number; isAlarm?: boolean }): Promise<{ success: boolean }>
+  cancelNativeNotification(options: { id: string }): Promise<{ success: boolean }>
+  startNativeAlarm(options: { volume?: number }): Promise<{ success: boolean }>
+  stopNativeAlarm(): Promise<{ success: boolean }>
+  playNativeNotificationSound(options: { volume?: number }): Promise<{ success: boolean }>
 }
+
+export interface NativeAndroidBridgePlugin {
+  requestNotificationPermission(): Promise<{ granted: boolean }>
+  sendNativeNotification(options: { id?: string; title: string; body: string; isAlarm?: boolean }): Promise<{ success: boolean }>
+  scheduleNativeNotification(options: { id: string; title: string; body: string; triggerAtMs: number; isAlarm?: boolean }): Promise<{ success: boolean }>
+  cancelNativeNotification(options: { id: string }): Promise<{ success: boolean }>
+  startNativeAlarm(options: { volume?: number }): Promise<{ success: boolean }>
+  stopNativeAlarm(): Promise<{ success: boolean }>
+  playNativeNotificationSound(options: { volume?: number }): Promise<{ success: boolean }>
+}
+
+export const NativeAndroidBridge = registerPlugin<NativeAndroidBridgePlugin>('NativeAndroidBridge', {
+  web: {
+    async requestNotificationPermission() {
+      return { granted: false }
+    },
+    async sendNativeNotification() {
+      return { success: false }
+    },
+    async scheduleNativeNotification() {
+      return { success: false }
+    },
+    async cancelNativeNotification() {
+      return { success: false }
+    },
+    async startNativeAlarm() {
+      return { success: false }
+    },
+    async stopNativeAlarm() {
+      return { success: false }
+    },
+    async playNativeNotificationSound() {
+      return { success: false }
+    },
+  },
+})
 
 export const NativeIOSBridge = registerPlugin<NativeIOSBridgePlugin>('NativeIOSBridge', {
   web: {
@@ -55,6 +98,27 @@ export const NativeIOSBridge = registerPlugin<NativeIOSBridgePlugin>('NativeIOSB
       return { success: false }
     },
     async setTabBarVisible() {
+      return { success: false }
+    },
+    async requestNotificationPermission() {
+      return { granted: false }
+    },
+    async sendNativeNotification() {
+      return { success: false }
+    },
+    async scheduleNativeNotification() {
+      return { success: false }
+    },
+    async cancelNativeNotification() {
+      return { success: false }
+    },
+    async startNativeAlarm() {
+      return { success: false }
+    },
+    async stopNativeAlarm() {
+      return { success: false }
+    },
+    async playNativeNotificationSound() {
       return { success: false }
     },
   },

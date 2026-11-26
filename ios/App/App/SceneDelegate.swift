@@ -1,6 +1,8 @@
 import UIKit
 import Capacitor
 import AudioToolbox
+import AVFoundation
+import UserNotifications
 import WebKit
 
 // ============================================================
@@ -17,7 +19,14 @@ public class NativeIOSBridge: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "copyToClipboardWithHaptic", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setActiveTab", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setTabBarVisible", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setTabBarVisible", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestNotificationPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sendNativeNotification", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scheduleNativeNotification", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelNativeNotification", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startNativeAlarm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopNativeAlarm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "playNativeNotificationSound", returnType: CAPPluginReturnPromise)
     ]
 
     private let lightImpact = UIImpactFeedbackGenerator(style: .light)
@@ -25,9 +34,13 @@ public class NativeIOSBridge: CAPPlugin, CAPBridgedPlugin {
     private let heavyImpact = UIImpactFeedbackGenerator(style: .heavy)
     private let selectionFeedback = UISelectionFeedbackGenerator()
     private let notificationFeedback = UINotificationFeedbackGenerator()
+    private var alarmPlayer: AVAudioPlayer?
+    private var notifyPlayer: AVAudioPlayer?
+    private let notificationDelegate = LarykoNotificationDelegate()
 
     override public func load() {
         super.load()
+        UNUserNotificationCenter.current().delegate = notificationDelegate
         DispatchQueue.main.async { [weak self] in
             self?.lightImpact.prepare()
             self?.mediumImpact.prepare()
@@ -154,6 +167,214 @@ public class NativeIOSBridge: CAPPlugin, CAPBridgedPlugin {
                 rootVC.setNativeTabBarVisible(visible)
             }
             call.resolve(["success": true])
+        }
+    }
+
+    @objc func requestNotificationPermission(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            call.resolve(["granted": granted])
+        }
+    }
+
+    @objc func sendNativeNotification(_ call: CAPPluginCall) {
+        let title = call.getString("title") ?? "Laryko"
+        let body = call.getString("body") ?? ""
+        let isAlarm = call.getBool("isAlarm") ?? false
+        let id = call.getString("id") ?? UUID().uuidString
+
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            guard granted else {
+                call.resolve(["success": false])
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            if #available(iOS 15.0, *), isAlarm {
+                content.interruptionLevel = .timeSensitive
+            }
+            let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
+            center.add(request) { err in
+                call.resolve(["success": err == nil])
+            }
+        }
+    }
+
+    @objc func scheduleNativeNotification(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"), !id.isEmpty else {
+            call.resolve(["success": false])
+            return
+        }
+        let title = call.getString("title") ?? "Laryko"
+        let body = call.getString("body") ?? ""
+        let isAlarm = call.getBool("isAlarm") ?? false
+        let triggerAtMs = call.getDouble("triggerAtMs") ?? 0
+        let intervalSec = max(1.0, (triggerAtMs - Date().timeIntervalSince1970 * 1000.0) / 1000.0)
+
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            guard granted else {
+                call.resolve(["success": false])
+                return
+            }
+            center.removePendingNotificationRequests(withIdentifiers: [id])
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            if #available(iOS 15.0, *), isAlarm {
+                content.interruptionLevel = .timeSensitive
+            }
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: intervalSec, repeats: false)
+            let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+            center.add(request) { err in
+                call.resolve(["success": err == nil])
+            }
+        }
+    }
+
+    @objc func cancelNativeNotification(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"), !id.isEmpty else {
+            call.resolve(["success": false])
+            return
+        }
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [id])
+        center.removeDeliveredNotifications(withIdentifiers: [id])
+        call.resolve(["success": true])
+    }
+
+    @objc func startNativeAlarm(_ call: CAPPluginCall) {
+        let volumePercent = call.getDouble("volume") ?? 100.0
+        let vol = Float(min(1.0, max(0.0, volumePercent / 100.0)))
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else {
+                call.resolve(["success": false])
+                return
+            }
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+                try session.setActive(true)
+                let wavData = Self.buildToneWav(isAlarm: true)
+                let player = try AVAudioPlayer(data: wavData)
+                player.numberOfLoops = -1
+                player.volume = vol
+                player.prepareToPlay()
+                player.play()
+                self.alarmPlayer?.stop()
+                self.alarmPlayer = player
+                AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                call.resolve(["success": true])
+            } catch {
+                call.resolve(["success": false])
+            }
+        }
+    }
+
+    @objc func stopNativeAlarm(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            self?.alarmPlayer?.stop()
+            self?.alarmPlayer = nil
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            call.resolve(["success": true])
+        }
+    }
+
+    @objc func playNativeNotificationSound(_ call: CAPPluginCall) {
+        let volumePercent = call.getDouble("volume") ?? 80.0
+        let vol = Float(min(1.0, max(0.0, volumePercent / 100.0)))
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else {
+                call.resolve(["success": false])
+                return
+            }
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                try session.setActive(true)
+                let wavData = Self.buildToneWav(isAlarm: false)
+                let player = try AVAudioPlayer(data: wavData)
+                player.numberOfLoops = 0
+                player.volume = vol
+                player.prepareToPlay()
+                player.play()
+                self.notifyPlayer = player
+                call.resolve(["success": true])
+            } catch {
+                call.resolve(["success": false])
+            }
+        }
+    }
+
+    private static func buildToneWav(isAlarm: Bool) -> Data {
+        let sampleRate = 22050
+        let durationSec = isAlarm ? 1.0 : 0.45
+        let numSamples = Int(Double(sampleRate) * durationSec)
+        var pcm = Data(capacity: numSamples * 2)
+
+        for i in 0..<numSamples {
+            let t = Double(i) / Double(sampleRate)
+            var sample: Double = 0
+            if isAlarm {
+                // Doble pulso de alarma agudo y claro (880 Hz / 1175 Hz)
+                let phase = t.truncatingRemainder(dividingBy: 0.5)
+                if phase < 0.22 {
+                    let freq = t < 0.5 ? 880.0 : 1174.66
+                    let env = min(1.0, phase / 0.01) * min(1.0, (0.22 - phase) / 0.02)
+                    sample = sin(2.0 * Double.pi * freq * t) * 0.85 * env
+                }
+            } else {
+                let freq = t < 0.16 ? 587.33 : 880.0
+                let env = min(1.0, t / 0.015) * max(0.0, 1.0 - (t / durationSec))
+                sample = sin(2.0 * Double.pi * freq * t) * 0.65 * env
+            }
+            let intSample = Int16(max(-32767, min(32767, sample * 32767.0)))
+            var le = intSample.littleEndian
+            pcm.append(Data(bytes: &le, count: 2))
+        }
+
+        let dataSize = UInt32(pcm.count)
+        let chunkSize = UInt32(36 + pcm.count)
+        var wav = Data()
+        wav.append("RIFF".data(using: .ascii)!)
+        var cs = chunkSize.littleEndian
+        wav.append(Data(bytes: &cs, count: 4))
+        wav.append("WAVEfmt ".data(using: .ascii)!)
+        var fmtSize = UInt32(16).littleEndian
+        wav.append(Data(bytes: &fmtSize, count: 4))
+        var audioFormat = UInt16(1).littleEndian
+        wav.append(Data(bytes: &audioFormat, count: 2))
+        var channels = UInt16(1).littleEndian
+        wav.append(Data(bytes: &channels, count: 2))
+        var sr = UInt32(sampleRate).littleEndian
+        wav.append(Data(bytes: &sr, count: 4))
+        var byteRate = UInt32(sampleRate * 2).littleEndian
+        wav.append(Data(bytes: &byteRate, count: 4))
+        var blockAlign = UInt16(2).littleEndian
+        wav.append(Data(bytes: &blockAlign, count: 2))
+        var bitsPerSample = UInt16(16).littleEndian
+        wav.append(Data(bytes: &bitsPerSample, count: 2))
+        wav.append("data".data(using: .ascii)!)
+        var ds = dataSize.littleEndian
+        wav.append(Data(bytes: &ds, count: 4))
+        wav.append(pcm)
+        return wav
+    }
+}
+
+private class LarykoNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        if #available(iOS 14.0, *) {
+            completionHandler([.banner, .sound, .badge, .list])
+        } else {
+            completionHandler([.alert, .sound, .badge])
         }
     }
 }
