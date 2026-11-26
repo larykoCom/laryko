@@ -204,9 +204,9 @@
     "semantic_hash": "13b49a574a9ddf1280c40c7e263c7cf4"
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1795646021.2949188,
-    "seen": 1795646092.530758,
-    "ast_hash": "d952e9aab33b1bd7933dbd3261f6661f",
+    "mtime": 1795659996.1168458,
+    "seen": 1795660116.4022248,
+    "ast_hash": "550eb57210e331c1ed77b922dac89246",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -222,9 +222,9 @@
     "semantic_hash": "3cb988f414327db71a5bc8b1b34e29c6"
   },
   "src/App.tsx": {
-    "mtime": 1795646906.0724776,
-    "seen": 1795646925.738452,
-    "ast_hash": "35251b0ab288e41d4baf2411ba594168",
+    "mtime": 1795652647.7826757,
+    "seen": 1795659837.206035,
+    "ast_hash": "e12814b4eb142f15d76f5d9f68832a68",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -252,10 +252,10 @@
     "semantic_hash": "663747397b4bcefee24cfbdfe19acd25"
   },
   "src/components/BottomBar/BottomBar.tsx": {
-    "mtime": 1795637522.1805089,
-    "seen": 1795642899.782807,
-    "ast_hash": "dd1230a352cb6f333394d57c257071cf",
-    "semantic_hash": "dd1230a352cb6f333394d57c257071cf"
+    "mtime": 1795652647.8361785,
+    "seen": 1795659837.206039,
+    "ast_hash": "b76483c85eb954314d93718684b5e3c2",
+    "semantic_hash": ""
   },
   "src/components/BottomBar/index.ts": {
     "mtime": 1795034152.1870668,
@@ -510,10 +510,10 @@
     "semantic_hash": "8e9c12ff9462a70bfa269b7df9e539a5"
   },
   "src/utils/aiAssistantActions.ts": {
-    "mtime": 1795641337.8777728,
-    "seen": 1795642899.782839,
-    "ast_hash": "25be7a3f396d202eb67d17a774e09beb",
-    "semantic_hash": "25be7a3f396d202eb67d17a774e09beb"
+    "mtime": 1795652647.8903637,
+    "seen": 1795659837.206078,
+    "ast_hash": "d8c7e87c206770358994f19c34c42204",
+    "semantic_hash": ""
   },
   "src/utils/integrationsBridge.ts": {
     "mtime": 1795646022.9327548,

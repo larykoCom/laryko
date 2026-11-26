@@ -3,8 +3,9 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::Write;
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    webview::{DownloadEvent, NewWindowResponse},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl,
     WindowEvent,
 };
@@ -113,21 +114,27 @@ async fn download_and_install_update(
 
 #[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
+    let parsed = tauri::Url::parse(url.trim()).map_err(|_| "URL externa inválida.".to_string())?;
+    if !matches!(parsed.scheme(), "https" | "http") {
+        return Err("Solo se permiten enlaces http:// o https://.".to_string());
+    }
+    let clean_url = parsed.to_string();
+
     #[cfg(target_os = "macos")]
     std::process::Command::new("open")
-        .arg(&url)
+        .arg(&clean_url)
         .spawn()
         .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "windows")]
     std::process::Command::new("cmd")
-        .args(["/c", "start", "", &url])
+        .args(["/c", "start", "", &clean_url])
         .spawn()
         .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "linux")]
     std::process::Command::new("xdg-open")
-        .arg(&url)
+        .arg(&clean_url)
         .spawn()
         .map_err(|e| e.to_string())?;
 
@@ -233,11 +240,76 @@ async fn open_session_webview(
     }
 
     #[allow(unused_mut)]
-    let mut builder = WebviewBuilder::new(&label, WebviewUrl::External(parsed_url));
+    let mut builder = WebviewBuilder::new(&label, WebviewUrl::External(parsed_url))
+        .disable_drag_drop_handler()
+        .on_new_window(move |url, _features| {
+            if matches!(url.scheme(), "https" | "http") {
+                let _ = open_external_url(url.to_string());
+            }
+            NewWindowResponse::Deny
+        })
+        .on_download({
+            let app_for_dl = app.clone();
+            move |_webview, event| {
+                match event {
+                    DownloadEvent::Requested { url: _, destination } => {
+                        if let Ok(dl_dir) = app_for_dl.path().download_dir() {
+                            let _ = std::fs::create_dir_all(&dl_dir);
+                            let file_name = destination
+                                .file_name()
+                                .map(|n| n.to_os_string())
+                                .unwrap_or_else(|| std::ffi::OsString::from("descarga-laryko"));
+                            let mut target = dl_dir.join(&file_name);
+                            if target.exists() {
+                                let stem = target
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("descarga")
+                                    .to_string();
+                                let ext = target
+                                    .extension()
+                                    .and_then(|s| s.to_str())
+                                    .map(|e| format!(".{}", e))
+                                    .unwrap_or_default();
+                                for idx in 1..1000 {
+                                    let candidate = dl_dir.join(format!("{} ({}){}", stem, idx, ext));
+                                    if !candidate.exists() {
+                                        target = candidate;
+                                        break;
+                                    }
+                                }
+                            }
+                            *destination = target;
+                        }
+                        true
+                    }
+                    DownloadEvent::Finished {
+                        url: _,
+                        path,
+                        success,
+                    } => {
+                        if success {
+                            if let Some(p) = path {
+                                let name = p
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("Archivo")
+                                    .to_string();
+                                let _ = app_for_dl.emit("laryko://download-finished", name);
+                            }
+                        }
+                        true
+                    }
+                    _ => true,
+                }
+            }
+        });
 
     #[cfg(target_os = "macos")]
     {
-        builder = builder.data_store_identifier(uuid_to_store_id(&session_uuid));
+        builder = builder
+            .data_store_identifier(uuid_to_store_id(&session_uuid))
+            .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36");
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -1123,6 +1195,40 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                let app_submenu = Submenu::with_items(
+                    app,
+                    "Laryko",
+                    true,
+                    &[
+                        &PredefinedMenuItem::about(app, Some("Acerca de Laryko"), None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::hide(app, Some("Ocultar Laryko"))?,
+                        &PredefinedMenuItem::hide_others(app, Some("Ocultar otros"))?,
+                        &PredefinedMenuItem::show_all(app, Some("Mostrar todo"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::quit(app, Some("Salir de Laryko"))?,
+                    ],
+                )?;
+                let edit_submenu = Submenu::with_items(
+                    app,
+                    "Edición",
+                    true,
+                    &[
+                        &PredefinedMenuItem::undo(app, Some("Deshacer"))?,
+                        &PredefinedMenuItem::redo(app, Some("Rehacer"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::cut(app, Some("Cortar"))?,
+                        &PredefinedMenuItem::copy(app, Some("Copiar"))?,
+                        &PredefinedMenuItem::paste(app, Some("Pegar"))?,
+                        &PredefinedMenuItem::select_all(app, Some("Seleccionar todo"))?,
+                    ],
+                )?;
+                let app_menu = Menu::with_items(app, &[&app_submenu, &edit_submenu])?;
+                app.set_menu(app_menu)?;
+            }
+
             let show_item = MenuItem::with_id(app, "show", "Abrir Laryko", true, None::<&str>)?;
             let quit_item =
                 MenuItem::with_id(app, "quit", "Salir completamente", true, None::<&str>)?;

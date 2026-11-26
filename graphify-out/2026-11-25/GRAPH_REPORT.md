@@ -1,18 +1,18 @@
 # Graph Report - laryko  (2026-11-25)
 
 ## Corpus Check
-- 105 files · ~63,982 words
+- 105 files · ~63,768 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 55 file(s) not represented in the graph (top: .css 19, .xml 13, (none) 8)
 - WARNING: 55 of 243 files seen (23%) have no supported extractor and are missing from this graph entirely. It may look complete while representing only part of the codebase.
 
 ## Summary
-- 829 nodes · 1375 edges · 52 communities (34 shown, 18 thin omitted)
+- 830 nodes · 1373 edges · 51 communities (33 shown, 18 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.9)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `122ff18a`
+- Built from commit: `3211ba41`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -24,10 +24,10 @@
 - Tauri Desktop Configuration
 - Android MainActivity & Bridge
 - CI Security & Release Workflows
-- App Lifecycle & Update Modal
+- useMultiSession.ts
 - toast.ts
 - App.tsx
-- useAiAssistant.ts
+- useUserPanel.ts
 - Asset Generation Scripts
 - TypeScript Configuration
 - GitHub Actions Release Steps
@@ -56,16 +56,15 @@
 - Registro de Cambios (Changelog)
 - CapApp-SPM/README.md
 - getVersion
-- Calculator.tsx
 - @capacitor/cli
 
 ## God Nodes (most connected - your core abstractions)
 1. `with` - 25 edges
 2. `react` - 24 edges
 3. `triggerNativeHaptic()` - 20 edges
-4. `Platform` - 18 edges
-5. `scripts` - 18 edges
-6. `compilerOptions` - 17 edges
+4. `scripts` - 18 edges
+5. `compilerOptions` - 17 edges
+6. `Platform` - 16 edges
 7. `playNotificationSound()` - 15 edges
 8. `lucide-react` - 15 edges
 9. `NativeIOSBridge` - 14 edges
@@ -78,27 +77,27 @@
   AGENTS.md → src/utils/nativeIOSBridge.ts
 - `🔄 Sistema Integrado de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
   DEVELOPMENT.md → src/hooks/useAppUpdater.ts
-- `🚀 Stack Tecnológico` --references--> `useOnlineStatus()`  [INFERRED]
-  DEVELOPMENT.md → src/hooks/useOnlineStatus.ts
 - `3. Sistema Integrado de Verificación de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
   prompt.md → src/hooks/useAppUpdater.ts
+- `🚀 Stack Tecnológico` --references--> `useOnlineStatus()`  [INFERRED]
+  DEVELOPMENT.md → src/hooks/useOnlineStatus.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (52 total, 18 thin omitted)
+## Communities (51 total, 18 thin omitted)
 
 ### Community 0 - "components/index.ts"
-Cohesion: 0.06
-Nodes (39): lucide-react, AlarmOverlay(), AlarmOverlayProps, ActiveTool, BottomBar(), BottomBarProps, NAV_ITEMS, NavItemConfig (+31 more)
+Cohesion: 0.05
+Nodes (32): AiAssistant(), AiAssistantProps, QUICK_PROMPTS, ActiveTool, BottomBar(), BottomBarProps, NAV_ITEMS, NavItemConfig (+24 more)
 
 ### Community 1 - "iOS Capacitor Audio & Bridge"
 Cohesion: 0.05
 Nodes (9): AudioToolbox, Capacitor, MainViewController, MultiSessionPlugin, NativeIOSBridge, SceneDelegate, SessionWebViewController, UIKit (+1 more)
 
 ### Community 2 - "Offline DB & Calculator"
-Cohesion: 0.06
-Nodes (64): dexie-react-hooks, react, FilterTab, NotificationsCenter(), NotificationsCenterProps, defaultDateTimeLocal(), Reminders(), RemindersProps (+56 more)
+Cohesion: 0.08
+Nodes (42): 🚀 Stack Tecnológico, dexie-react-hooks, lucide-react, react, AlarmOverlay(), AlarmOverlayProps, FilterTab, NotificationsCenter() (+34 more)
 
 ### Community 3 - "Tauri Rust Backend & Tray"
 Cohesion: 0.05
@@ -112,9 +111,9 @@ Nodes (44): app, security, windows, bundleMediaFramework, build, beforeBuildComm
 Cohesion: 0.08
 Nodes (31): name, runs-on, steps, name, runs-on, steps, name, runs-on (+23 more)
 
-### Community 7 - "App Lifecycle & Update Modal"
-Cohesion: 0.12
-Nodes (15): 1. Stack Tecnológico (Single Web Codebase + CSS Nativo + Offline-First), 2. Identificadores, Dominio y Nombres de Artefactos Fijos, 3. Sistema Integrado de Verificación de Actualizaciones (`useAppUpdater`), 4. Entregables para este primer paso ("Hola Mundo"), UpdateModal(), UpdateModalProps, compareVersions(), DownloadProgress (+7 more)
+### Community 7 - "useMultiSession.ts"
+Cohesion: 0.07
+Nodes (38): 1. Stack Tecnológico (Single Web Codebase + CSS Nativo + Offline-First), 2. Identificadores, Dominio y Nombres de Artefactos Fijos, 3. Sistema Integrado de Verificación de Actualizaciones (`useAppUpdater`), 4. Entregables para este primer paso ("Hola Mundo"), COLOR_SWATCHES, MultiSessionProps, UpdateModal(), UpdateModalProps (+30 more)
 
 ### Community 8 - "toast.ts"
 Cohesion: 0.15
@@ -124,9 +123,9 @@ Nodes (13): GlobalToast(), ICONS, ToastCard(), currentToasts, DEFAULT_DURATIONS,
 Cohesion: 0.08
 Nodes (3): App(), PLATFORM_ICONS, rootElement
 
-### Community 10 - "useAiAssistant.ts"
-Cohesion: 0.19
-Nodes (13): AiAssistant(), AiAssistantProps, QUICK_PROMPTS, AssistantChatMessage, resolveActiveProvider(), useAiAssistant(), UseAiAssistantParams, ALLOWED_RECURRENCE (+5 more)
+### Community 10 - "useUserPanel.ts"
+Cohesion: 0.10
+Nodes (33): UserPreferences, AssistantChatMessage, resolveActiveProvider(), useAiAssistant(), UseAiAssistantParams, DEFAULT_PREFS, useUserPanel(), ALLOWED_RECURRENCE (+25 more)
 
 ### Community 11 - "Asset Generation Scripts"
 Cohesion: 0.10
@@ -146,15 +145,15 @@ Nodes (18): scripts, audit, build, build:android, build:android:apk, cap:android
 
 ### Community 15 - "🛠️ Guía de Desarrollo de Laryko"
 Cohesion: 0.09
-Nodes (21): 💻 Desarrollo Local, Ejecutar en Escritorio con Tauri (macOS/Windows/Linux), Ejecutar en la Web (Vite Dev Server), 🏗️ Estructura del Repositorio, 🛠️ Guía de Desarrollo de Laryko, 🏷️ Identificadores y Dominio, Inicializar y Sincronizar Plataformas Móviles (Capacitor), Instalación (+13 more)
+Nodes (20): 💻 Desarrollo Local, Ejecutar en Escritorio con Tauri (macOS/Windows/Linux), Ejecutar en la Web (Vite Dev Server), 🏗️ Estructura del Repositorio, 🛠️ Guía de Desarrollo de Laryko, 🏷️ Identificadores y Dominio, Inicializar y Sincronizar Plataformas Móviles (Capacitor), Instalación (+12 more)
 
 ### Community 16 - "Version & Copyright Sync"
 Cohesion: 0.12
 Nodes (11): args, currentYear, __dirname, isCheck, pkg, pkgPath, rootDir, semverParts (+3 more)
 
 ### Community 18 - "dependencies"
-Cohesion: 0.12
-Nodes (17): dependencies, @capacitor/android@^8.6.2, @capacitor/ios@^8.6.2, @capacitor/network@8.0.1, dexie@4.4.7, dexie-react-hooks@4.4.0, lucide-react@^1.73.0, react@19.3.1 (+9 more)
+Cohesion: 0.11
+Nodes (19): dependencies, @capacitor/android@^8.6.2, @capacitor/core@8.6.2, @capacitor/ios@^8.6.2, @capacitor/network@8.0.1, dexie@4.4.7, dexie-react-hooks@4.4.0, lucide-react@^1.73.0 (+11 more)
 
 ### Community 20 - "name Module"
 Cohesion: 0.26
@@ -213,12 +212,8 @@ Cohesion: 0.17
 Nodes (11): [0.1.0] - 2026-11-16, [1.1.0] - 2026-11-18, [1.1.1] - 2026-11-19, [1.1.2] - 2026-11-24, Añadido (Added), Añadido (Added), Añadido (Added), Añadido (Added) (+3 more)
 
 ### Community 54 - "getVersion"
-Cohesion: 0.18
-Nodes (10): @capacitor/app@8.1.2, @capacitor/core@8.6.2, @tauri-apps/api@2.12.4, @capacitor/app, @capacitor/core, @tauri-apps/api, detectPlatform(), getVersion() (+2 more)
-
-### Community 55 - "Calculator.tsx"
-Cohesion: 0.11
-Nodes (10): Calculator(), CalculatorProps, PercentageCalculator(), formatNumberWithCommas(), roundResult(), useCalculator(), HapticType, LiquidGlassCapabilities (+2 more)
+Cohesion: 0.40
+Nodes (5): @capacitor/app@8.1.2, @tauri-apps/api@2.12.4, @capacitor/app, @tauri-apps/api, getVersion()
 
 ### Community 57 - "@capacitor/cli"
 Cohesion: 0.50
@@ -232,17 +227,17 @@ Nodes (3): config, @capacitor/cli@8.6.2, @capacitor/cli
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `Offline DB & Calculator` to `components/index.ts`, `App Lifecycle & Update Modal`, `toast.ts`, `App.tsx`, `useAiAssistant.ts`, `dependencies`, `getVersion`, `Calculator.tsx`, `devDependencies`?**
+- **Why does `react` connect `Offline DB & Calculator` to `components/index.ts`, `useMultiSession.ts`, `toast.ts`, `App.tsx`, `useUserPanel.ts`, `dependencies`, `devDependencies`?**
   _High betweenness centrality (0.047) - this node is a cross-community bridge._
 - **What connects `AudioToolbox`, `WebKit`, `PackageDescription` to the rest of the system?**
   _4 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `components/index.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.06169772256728778 - nodes in this community are weakly interconnected._
-- **Why does `lucide-react` connect `components/index.ts` to `Offline DB & Calculator`, `App Lifecycle & Update Modal`, `toast.ts`, `App.tsx`, `useAiAssistant.ts`, `dependencies`, `Calculator.tsx`, `devDependencies`?**
+  _Cohesion score 0.05060882800608828 - nodes in this community are weakly interconnected._
+- **Why does `lucide-react` connect `Offline DB & Calculator` to `components/index.ts`, `useMultiSession.ts`, `toast.ts`, `App.tsx`, `dependencies`, `devDependencies`?**
   _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **Should `iOS Capacitor Audio & Bridge` be split into smaller, more focused modules?**
   _Cohesion score 0.05084745762711865 - nodes in this community are weakly interconnected._
+- **Why does `🛠️ Guía de Desarrollo de Laryko` connect `🛠️ Guía de Desarrollo de Laryko` to `Offline DB & Calculator`?**
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
 - **Should `Offline DB & Calculator` be split into smaller, more focused modules?**
-  _Cohesion score 0.0568986568986569 - nodes in this community are weakly interconnected._
-- **Should `Tauri Rust Backend & Tray` be split into smaller, more focused modules?**
-  _Cohesion score 0.05451127819548872 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07539682539682539 - nodes in this community are weakly interconnected._

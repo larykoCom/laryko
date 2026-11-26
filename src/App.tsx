@@ -41,6 +41,7 @@ import {
 } from '@/components'
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import { multiSessionBridge } from '@/utils/multiSessionBridge'
+import { toast } from '@/utils/toast'
 import type { LarykoAiAction } from '@/utils/aiAssistantActions'
 import styles from './App.module.css'
 
@@ -86,6 +87,24 @@ export function App() {
   useEffect(() => {
     if (appInfo.platform === 'ios') {
       NativeIOSBridge.setWebViewTransparent({ transparent: true })
+    }
+  }, [appInfo.platform])
+
+  useEffect(() => {
+    if (!['macos', 'windows', 'linux'].includes(appInfo.platform)) return
+    let unlisten: (() => void) | undefined
+    import('@tauri-apps/api/event')
+      .then(({ listen }) =>
+        listen<string>('laryko://download-finished', (event) => {
+          toast.success(`Descarga completada: ${event.payload}`)
+        })
+      )
+      .then((fn) => {
+        unlisten = fn
+      })
+      .catch(() => {})
+    return () => {
+      unlisten?.()
     }
   }, [appInfo.platform])
 
