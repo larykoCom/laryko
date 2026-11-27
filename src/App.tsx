@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense, type ReactNode } from 'react'
 import {
   Globe,
   Smartphone,
@@ -28,21 +28,31 @@ import {
   useNotificationsCenter,
   useReminders,
 } from '@/hooks'
-import {
-  StatusBadge,
-  UpdateModal,
-  BottomBar,
-  UpdateCircleButton,
-  Calculator,
-  MultiSession,
-  UserPanel,
-  Reminders,
-  NotificationsCenter,
-  AlarmOverlay,
-  AiAssistant,
-  GlobalToast,
-  type ActiveTool,
-} from '@/components'
+import { StatusBadge } from '@/components/StatusBadge'
+import { UpdateModal } from '@/components/UpdateModal'
+import { BottomBar, type ActiveTool } from '@/components/BottomBar'
+import { UpdateCircleButton } from '@/components/UpdateCircleButton'
+import { AlarmOverlay } from '@/components/AlarmOverlay'
+import { GlobalToast } from '@/components/GlobalToast'
+
+const Calculator = lazy(() =>
+  import('@/components/Calculator').then((m) => ({ default: m.Calculator }))
+)
+const MultiSession = lazy(() =>
+  import('@/components/MultiSession').then((m) => ({ default: m.MultiSession }))
+)
+const UserPanel = lazy(() =>
+  import('@/components/UserPanel').then((m) => ({ default: m.UserPanel }))
+)
+const Reminders = lazy(() =>
+  import('@/components/Reminders').then((m) => ({ default: m.Reminders }))
+)
+const NotificationsCenter = lazy(() =>
+  import('@/components/NotificationsCenter').then((m) => ({ default: m.NotificationsCenter }))
+)
+const AiAssistant = lazy(() =>
+  import('@/components/AiAssistant').then((m) => ({ default: m.AiAssistant }))
+)
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import { multiSessionBridge } from '@/utils/multiSessionBridge'
 import { sanitizeSessionUrl } from '@/utils/pinCrypto'
@@ -829,38 +839,40 @@ export function App() {
           </>
         )}
 
-        {activeTool === 'calculator' && (
-          <Calculator platform={appInfo.platform} />
-        )}
+        <Suspense fallback={null}>
+          {activeTool === 'calculator' && (
+            <Calculator platform={appInfo.platform} />
+          )}
 
-        {activeTool === 'sessions' && (
-          <MultiSession
-            platform={appInfo.platform}
-            multiSession={multiSession}
-            currentUuid={currentSessionUuid}
-            onSelectUuid={setCurrentSessionUuid}
-            showManager={showSessionManager}
-            onToggleManager={setShowSessionManager}
-            showAddFormSignal={addFormSignal}
-          />
-        )}
+          {activeTool === 'sessions' && (
+            <MultiSession
+              platform={appInfo.platform}
+              multiSession={multiSession}
+              currentUuid={currentSessionUuid}
+              onSelectUuid={setCurrentSessionUuid}
+              showManager={showSessionManager}
+              onToggleManager={setShowSessionManager}
+              showAddFormSignal={addFormSignal}
+            />
+          )}
 
-        {activeTool === 'reminders' && (
-          <Reminders
-            platform={appInfo.platform}
-            vault={userPanel.vault}
-            onLocalChange={userPanel.bidirectionalSync}
-            remindersState={remindersState}
-          />
-        )}
+          {activeTool === 'reminders' && (
+            <Reminders
+              platform={appInfo.platform}
+              vault={userPanel.vault}
+              onLocalChange={userPanel.bidirectionalSync}
+              remindersState={remindersState}
+            />
+          )}
 
-        {activeTool === 'account' && (
-          <UserPanel
-            platform={appInfo.platform}
-            userPanelState={userPanel}
-            requestedTab={accountTab}
-          />
-        )}
+          {activeTool === 'account' && (
+            <UserPanel
+              platform={appInfo.platform}
+              userPanelState={userPanel}
+              requestedTab={accountTab}
+            />
+          )}
+        </Suspense>
       </main>
       </div>
       </div>
@@ -908,28 +920,30 @@ export function App() {
       <GlobalToast />
 
       {/* ── Asistente IA Flotante (esquina inferior derecha) ── */}
-      <AiAssistant
-        isOpen={showAiAssistant}
-        onToggle={setShowAiAssistant}
-        hasVaultSetup={userPanel.hasVaultSetup}
-        onUnlockVault={userPanel.unlockOrInitVault}
-        onOpenAiSettings={() => {
-          setAccountTab('ai')
-          setActiveTool('account')
-        }}
-        assistantParams={{
-          platform: appInfo.platform,
-          isOnline,
-          activeTool,
-          vault: userPanel.vault,
-          vaultUnlocked: userPanel.vaultUnlocked,
-          hasDatabase: userPanel.hasDatabaseConfigured,
-          pendingRemindersCount: remindersState.reminders.filter((r) => !r.completed).length,
-          sessionsCount: multiSession.sessions.length,
-          activeSessionsCount,
-          onExecuteAction: executeAiAction,
-        }}
-      />
+      <Suspense fallback={null}>
+        <AiAssistant
+          isOpen={showAiAssistant}
+          onToggle={setShowAiAssistant}
+          hasVaultSetup={userPanel.hasVaultSetup}
+          onUnlockVault={userPanel.unlockOrInitVault}
+          onOpenAiSettings={() => {
+            setAccountTab('ai')
+            setActiveTool('account')
+          }}
+          assistantParams={{
+            platform: appInfo.platform,
+            isOnline,
+            activeTool,
+            vault: userPanel.vault,
+            vaultUnlocked: userPanel.vaultUnlocked,
+            hasDatabase: userPanel.hasDatabaseConfigured,
+            pendingRemindersCount: remindersState.reminders.filter((r) => !r.completed).length,
+            sessionsCount: multiSession.sessions.length,
+            activeSessionsCount,
+            onExecuteAction: executeAiAction,
+          }}
+        />
+      </Suspense>
 
       {/* ── Alarma Activa (Sonido continuo de alto volumen) ── */}
       {remindersState.activeAlarm && (
@@ -943,10 +957,12 @@ export function App() {
 
       {/* ── Centro de Notificaciones ── */}
       {showNotifications && (
-        <NotificationsCenter
-          onClose={() => setShowNotifications(false)}
-          onOpenAgenda={() => setActiveTool('reminders')}
-        />
+        <Suspense fallback={null}>
+          <NotificationsCenter
+            onClose={() => setShowNotifications(false)}
+            onOpenAgenda={() => setActiveTool('reminders')}
+          />
+        </Suspense>
       )}
 
       {/* ── Modal de Actualizaciones ── */}

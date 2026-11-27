@@ -186,10 +186,10 @@
     "semantic_hash": "973353b97b951c22e3cc21560dd09456"
   },
   "src-tauri/gen/schemas/capabilities.json": {
-    "mtime": 1795624664.6866155,
-    "seen": 1795642899.78279,
-    "ast_hash": "53348a336120e9c1abe236756d265e26",
-    "semantic_hash": "53348a336120e9c1abe236756d265e26"
+    "mtime": 1795813203.1813946,
+    "seen": 1795814154.21278,
+    "ast_hash": "33d7586d5d535a1ba0684a8dcf96d2ac",
+    "semantic_hash": ""
   },
   "src-tauri/gen/schemas/desktop-schema.json": {
     "mtime": 1794809046.251412,
@@ -204,9 +204,9 @@
     "semantic_hash": "13b49a574a9ddf1280c40c7e263c7cf4"
   },
   "src-tauri/src/lib.rs": {
-    "mtime": 1795663194.9489849,
-    "seen": 1795663259.389415,
-    "ast_hash": "1c071ac98d165d352db3f4b6860fe388",
+    "mtime": 1795814063.7336822,
+    "seen": 1795814154.212789,
+    "ast_hash": "eb5bbafa82bd24169c0a4b6bf8ac8f2e",
     "semantic_hash": ""
   },
   "src-tauri/src/main.rs": {
@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795812970.3590806,
-    "seen": 1795813140.572051,
-    "ast_hash": "071e416bfe6f91b73ca88a44eb5af71f",
+    "mtime": 1795814184.3891957,
+    "seen": 1795814207.649961,
+    "ast_hash": "370ba5d3007f6ac00598ecaac512af45",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -444,9 +444,9 @@
     "semantic_hash": "4e36b15a052a6ffcc10d4c0d148103c2"
   },
   "src/hooks/useMultiSession.ts": {
-    "mtime": 1795813075.9884882,
-    "seen": 1795813140.572085,
-    "ast_hash": "35eb0e78dfecb1d6fe359c2d5103747b",
+    "mtime": 1795814093.968358,
+    "seen": 1795814154.212824,
+    "ast_hash": "9bd5e352a4c5c12312697d187bc2c847",
     "semantic_hash": ""
   },
   "src/hooks/useNotificationsCenter.ts": {
@@ -1137,6 +1137,54 @@
     "mtime": 1795670874.570426,
     "seen": 1795670950.5625799,
     "ast_hash": "cee2012ec1815919d46d944dc24e3ff7",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/commands/ai.rs": {
+    "mtime": 1795814030.4583492,
+    "seen": 1795814154.212783,
+    "ast_hash": "610d83f835443e3fc0994e22650573b6",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/commands/integrations.rs": {
+    "mtime": 1795814029.0841377,
+    "seen": 1795814154.212784,
+    "ast_hash": "a5f99b0bfb50aeaf2c03dff3a7a02f00",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/commands/mod.rs": {
+    "mtime": 1795813986.6565905,
+    "seen": 1795814154.212785,
+    "ast_hash": "cbcdd341fd829634bcc3b4c290aed0e5",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/commands/neon.rs": {
+    "mtime": 1795814027.6939461,
+    "seen": 1795814154.212786,
+    "ast_hash": "929744231f46603ad515cb6da74c1c20",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/commands/notifications.rs": {
+    "mtime": 1795813994.56043,
+    "seen": 1795814154.212787,
+    "ast_hash": "c0449faba7b4119a4fcb84f383ea2fe3",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/commands/sessions.rs": {
+    "mtime": 1795814170.7023919,
+    "seen": 1795814207.649956,
+    "ast_hash": "b02f7ba05840123a33005babb8e9d35e",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/commands/updater.rs": {
+    "mtime": 1795813993.2749631,
+    "seen": 1795814154.2127879,
+    "ast_hash": "74bb252e517b64b317e2b381d4c6791a",
+    "semantic_hash": ""
+  },
+  "src-tauri/src/state.rs": {
+    "mtime": 1795813985.5655928,
+    "seen": 1795814154.212791,
+    "ast_hash": "19c2455a4fc16c3834b07c0d18b5facd",
     "semantic_hash": ""
   },
   "pnpm-lock.yaml": {

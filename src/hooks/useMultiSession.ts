@@ -104,13 +104,43 @@ export function useMultiSession(platform: Platform) {
   useEffect(() => {
     if (!isUnlocked) return
     syncActiveStates()
+
+    const isTauriDesktop =
+      (platform === 'macos' || platform === 'windows' || platform === 'linux') &&
+      typeof window !== 'undefined' &&
+      '__TAURI_INTERNALS__' in window
+
+    if (isTauriDesktop) {
+      let unlisten: (() => void) | null = null
+      void import('@tauri-apps/api/event').then(({ listen }) => {
+        void listen<string>('laryko://session-slept', async (event) => {
+          const sleptUuid = event.payload
+          const match = await db.sessions.where('uuid').equals(sleptUuid).first()
+          if (match?.id !== undefined) {
+            await db.sessions.update(match.id, { status: 'sleeping' })
+          }
+        }).then((fn) => {
+          unlisten = fn
+        })
+      })
+      return () => {
+        if (unlisten) unlisten()
+      }
+    }
+
     const interval = setInterval(syncActiveStates, 8000)
     return () => clearInterval(interval)
-  }, [isUnlocked, syncActiveStates])
+  }, [isUnlocked, platform, syncActiveStates])
 
-  // Auto-hibernación de sesiones inactivas para optimizar RAM al 100%
+  // Auto-hibernación de sesiones inactivas: en Tauri Desktop la ejecuta Tokio en Rust; en Móvil/Web corre en JS
   useEffect(() => {
     if (!isUnlocked) return
+    const isTauriDesktop =
+      (platform === 'macos' || platform === 'windows' || platform === 'linux') &&
+      typeof window !== 'undefined' &&
+      '__TAURI_INTERNALS__' in window
+    if (isTauriDesktop) return
+
     const timer = setInterval(async () => {
       const cutoff = Date.now() - IDLE_SLEEP_MS
       const stale = await db.sessions
