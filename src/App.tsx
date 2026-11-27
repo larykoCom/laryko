@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import {
   Globe,
   Smartphone,
@@ -240,8 +240,27 @@ export function App() {
   const showSidebarSubmenu =
     activeTool === 'sessions' && multiSession.isUnlocked && multiSession.sessions.length > 0
 
+  const handleWindowMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!isDesktopTauri || e.button !== 0 || e.detail > 1) return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (
+        target.closest(
+          'button, a, input, textarea, select, option, label, [role="button"], [contenteditable="true"], [data-no-drag]'
+        )
+      ) {
+        return
+      }
+      void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+        void getCurrentWindow().startDragging().catch(() => {})
+      })
+    },
+    [isDesktopTauri]
+  )
+
   return (
-    <div className={styles.app}>
+    <div className={styles.app} onMouseDown={handleWindowMouseDown}>
       {isDesktopTauri && (
         <header
           className={`${styles.titlebar} ${appInfo.platform !== 'macos' ? styles.titlebarWin : ''}`}

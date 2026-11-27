@@ -14,6 +14,7 @@ import {
   ArrowDown,
   Pencil,
   Upload,
+  Settings,
 } from 'lucide-react'
 import { SESSION_TEMPLATES, type useMultiSession } from '@/hooks/useMultiSession'
 import { multiSessionBridge, type SessionBounds } from '@/utils/multiSessionBridge'
@@ -60,6 +61,7 @@ export function MultiSession({
     supportsTrueIsolation,
     setupPin,
     verifyPin,
+    updateAutoLockMinutes,
     lockNow,
     createGroup,
     createSession,
@@ -74,6 +76,7 @@ export function MultiSession({
   const [selectedGroupId, setSelectedGroupId] = useState<number | 'all'>('all')
   const [showAddSession, setShowAddSession] = useState(false)
   const [showAddGroup, setShowAddGroup] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const viewportRef = useRef<HTMLDivElement>(null)
   const isDesktopEmbedded = multiSessionBridge.isDesktopEmbedded(platform)
@@ -359,6 +362,21 @@ export function MultiSession({
             type="button"
             className={styles.lockBtn}
             onClick={() => {
+              triggerNativeHaptic('selection')
+              setShowSettings((v) => !v)
+              setShowAddSession(false)
+              setShowAddGroup(false)
+            }}
+            title="Preferencias de Multi-Sesión"
+            aria-label="Preferencias de Multi-Sesión"
+            style={showSettings ? { borderColor: 'var(--color-accent)', background: 'var(--color-bg-secondary)' } : undefined}
+          >
+            <Settings size={16} strokeWidth={2.2} />
+          </button>
+          <button
+            type="button"
+            className={styles.lockBtn}
+            onClick={() => {
               triggerNativeHaptic('medium')
               onSelectUuid(null)
               lockNow(true)
@@ -370,6 +388,44 @@ export function MultiSession({
           </button>
         </div>
       </div>
+
+        {showSettings && (
+          <div className={styles.inlineForm}>
+            <div className={styles.formHeader}>
+              <span>Preferencias de Multi-Sesión</span>
+              <button type="button" onClick={() => setShowSettings(false)} className={styles.closeNotice} aria-label="Cerrar preferencias">
+                <X size={16} />
+              </button>
+            </div>
+            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+              Bloqueo automático y solicitud de PIN
+            </label>
+            <select
+              className={styles.select}
+              value={pinConfig?.autoLockMinutes ?? 5}
+              onChange={(e) => {
+                triggerNativeHaptic('selection')
+                void updateAutoLockMinutes(Number(e.target.value))
+              }}
+              aria-label="Tiempo de bloqueo automático por PIN"
+            >
+              <option value={-1}>Inmediato al minimizar o cambiar de ventana</option>
+              <option value={1}>Tras 1 minuto de inactividad</option>
+              <option value={5}>Tras 5 minutos de inactividad</option>
+              <option value={15}>Tras 15 minutos de inactividad</option>
+              <option value={30}>Tras 30 minutos de inactividad</option>
+              <option value={60}>Tras 1 hora de inactividad</option>
+              <option value={0}>Desactivado durante la sesión (hasta cerrar o reiniciar la app)</option>
+            </select>
+            <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', lineHeight: 1.45 }}>
+              {(pinConfig?.autoLockMinutes ?? 5) === 0
+                ? 'Las sesiones permanecerán desbloqueadas mientras la app esté abierta. Volverá a pedir el PIN cuando cierres, reinicies o suspendas completamente la aplicación.'
+                : (pinConfig?.autoLockMinutes ?? 5) === -1
+                  ? 'Por máxima seguridad, Multi-Sesión se bloqueará y dormirá las pestañas cada vez que la ventana pase a segundo plano.'
+                  : `Multi-Sesión se bloqueará automáticamente y pedirá el PIN después de ${pinConfig?.autoLockMinutes ?? 5} minuto(s) sin actividad.`}
+            </p>
+          </div>
+        )}
 
         {!supportsTrueIsolation && (
           <div className={styles.infoBanner}>

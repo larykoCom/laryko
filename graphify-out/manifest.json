@@ -24,8 +24,8 @@
     "semantic_hash": "99c44b4fa6fda04be23a81af5ffcf67c"
   },
   "android/app/capacitor.build.gradle": {
-    "mtime": 1795669979.835993,
-    "seen": 1795670507.023432,
+    "mtime": 1795670971.633397,
+    "seen": 1795812893.540475,
     "ast_hash": "6a1d10f6ec187c47a47a6db8f32a215d",
     "semantic_hash": "6a1d10f6ec187c47a47a6db8f32a215d"
   },
@@ -60,8 +60,8 @@
     "semantic_hash": "682315a426653617c6a74fc12bef55b6"
   },
   "android/capacitor.settings.gradle": {
-    "mtime": 1795669979.8358905,
-    "seen": 1795670507.023437,
+    "mtime": 1795670971.6331213,
+    "seen": 1795812893.5404842,
     "ast_hash": "666bdf7ab6b095ba8f5def6aae476509",
     "semantic_hash": "666bdf7ab6b095ba8f5def6aae476509"
   },
@@ -114,14 +114,14 @@
     "semantic_hash": "1162e1cddd7ea769bcacdd1aa7b4ac72"
   },
   "ios/App/App/SceneDelegate.swift": {
-    "mtime": 1795670850.549422,
-    "seen": 1795670950.56259,
+    "mtime": 1795671029.3237503,
+    "seen": 1795812893.540492,
     "ast_hash": "7f8ddc256ff647e94b88ee6874c1be04",
     "semantic_hash": ""
   },
   "ios/App/CapApp-SPM/Package.swift": {
-    "mtime": 1795665771.0997643,
-    "seen": 1795669400.280011,
+    "mtime": 1795670972.013596,
+    "seen": 1795812893.540492,
     "ast_hash": "ec7530133167205945f5821e62a20d20",
     "semantic_hash": "ec7530133167205945f5821e62a20d20"
   },
@@ -174,10 +174,10 @@
     "semantic_hash": "1be34a5c61c2c35365de3dab14298f0b"
   },
   "src-tauri/capabilities/default.json": {
-    "mtime": 1795624782.5464554,
-    "seen": 1795642899.782788,
-    "ast_hash": "7185beee677c68e3c7729c62c2bd8ed9",
-    "semantic_hash": "7185beee677c68e3c7729c62c2bd8ed9"
+    "mtime": 1795812876.3334537,
+    "seen": 1795812893.5405,
+    "ast_hash": "f96f7100920edab9821f00034e352f8d",
+    "semantic_hash": ""
   },
   "src-tauri/gen/schemas/acl-manifests.json": {
     "mtime": 1794809046.2438054,
@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795669366.5009174,
-    "seen": 1795669400.280024,
-    "ast_hash": "3b361d7a95f4e276f66638523873d59e",
+    "mtime": 1795812970.3590806,
+    "seen": 1795813140.572051,
+    "ast_hash": "071e416bfe6f91b73ca88a44eb5af71f",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -306,9 +306,9 @@
     "semantic_hash": "a9fe1931f937546db614f145794174c6"
   },
   "src/components/MultiSession/MultiSession.tsx": {
-    "mtime": 1795663585.1380992,
-    "seen": 1795665286.117095,
-    "ast_hash": "24083ad968e807300a539cb1338f1d45",
+    "mtime": 1795813122.7651649,
+    "seen": 1795813140.572065,
+    "ast_hash": "2ab4e32f2251724b1f1c4621654ed287",
     "semantic_hash": ""
   },
   "src/components/MultiSession/PinLock.tsx": {
@@ -444,9 +444,9 @@
     "semantic_hash": "4e36b15a052a6ffcc10d4c0d148103c2"
   },
   "src/hooks/useMultiSession.ts": {
-    "mtime": 1795663349.851322,
-    "seen": 1795665286.117114,
-    "ast_hash": "7ae77c97c2b16bebc7b9b10322c3576d",
+    "mtime": 1795813075.9884882,
+    "seen": 1795813140.572085,
+    "ast_hash": "35eb0e78dfecb1d6fe359c2d5103747b",
     "semantic_hash": ""
   },
   "src/hooks/useNotificationsCenter.ts": {
@@ -474,9 +474,9 @@
     "semantic_hash": "e41643f4f00ad61ac5bf388e6fd3b407"
   },
   "src/hooks/useReminders.ts": {
-    "mtime": 1795670933.7873693,
-    "seen": 1795670950.562641,
-    "ast_hash": "235cb1bd66cd5c51351229adc58b71e3",
+    "mtime": 1795671029.3508456,
+    "seen": 1795812893.540545,
+    "ast_hash": "73aa7cbe5d57f671f85a2d1b0d5f74a9",
     "semantic_hash": ""
   },
   "src/hooks/useUserPanel.ts": {
@@ -534,8 +534,8 @@
     "semantic_hash": ""
   },
   "src/utils/notificationsBridge.ts": {
-    "mtime": 1795670902.6758647,
-    "seen": 1795670950.562649,
+    "mtime": 1795671029.385591,
+    "seen": 1795812893.540554,
     "ast_hash": "1c6d373f718784f1f2150c403a0ef3a3",
     "semantic_hash": ""
   },

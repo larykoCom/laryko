@@ -1,7 +1,7 @@
-# Graph Report - laryko  (2026-11-26)
+# Graph Report - laryko  (2026-11-27)
 
 ## Corpus Check
-- 107 files · ~69,815 words
+- 107 files · ~70,303 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 55 file(s) not represented in the graph (top: .css 19, .xml 13, (none) 8)
 - WARNING: 55 of 245 files seen (22%) have no supported extractor and are missing from this graph entirely. It may look complete while representing only part of the codebase.
@@ -12,7 +12,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3904a165`
+- Built from commit: `b4f6945b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -88,16 +88,16 @@
 6. `scripts` - 18 edges
 7. `LarykoRootViewController` - 17 edges
 8. `compilerOptions` - 17 edges
-9. `playNotificationSound()` - 16 edges
-10. `MultiSessionPlugin` - 16 edges
+9. `MultiSessionPlugin` - 16 edges
+10. `playNotificationSound()` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Añadido (Added)` --references--> `NativeIOSBridge`  [INFERRED]
   CHANGELOG.md → ios/App/App/SceneDelegate.swift
-- `Uso estándar:` --references--> `triggerNativeHaptic()`  [INFERRED]
-  AGENTS.md → src/utils/nativeIOSBridge.ts
 - `🔄 Sistema Integrado de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
   DEVELOPMENT.md → src/hooks/useAppUpdater.ts
+- `Uso estándar:` --references--> `triggerNativeHaptic()`  [INFERRED]
+  AGENTS.md → src/utils/nativeIOSBridge.ts
 - `🚀 Stack Tecnológico` --references--> `useOnlineStatus()`  [INFERRED]
   DEVELOPMENT.md → src/hooks/useOnlineStatus.ts
 - `3. Sistema Integrado de Verificación de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
@@ -277,7 +277,7 @@ Cohesion: 0.53
 Nodes (3): Calculator(), CalculatorProps, triggerNativeHaptic()
 
 ## Knowledge Gaps
-- **6 isolated node(s):** `AudioToolbox`, `AVFoundation`, `UserNotifications`, `WebKit`, `PackageDescription` (+1 more)
+- **6 isolated node(s):** `PackageDescription`, `laryko`, `AudioToolbox`, `AVFoundation`, `UserNotifications` (+1 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 448 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **37 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -286,7 +286,7 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `SessionWebViewController` connect `SessionWebViewController` to `MultiSessionPlugin`, `LarykoRootViewController`, `SceneDelegate.swift`, `LarykoNotificationDelegate`?**
   _High betweenness centrality (0.044) - this node is a cross-community bridge._
-- **What connects `AudioToolbox`, `AVFoundation`, `UserNotifications` to the rest of the system?**
+- **What connects `PackageDescription`, `laryko`, `AudioToolbox` to the rest of the system?**
   _6 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Offline DB & Calculator` be split into smaller, more focused modules?**
   _Cohesion score 0.05240549828178694 - nodes in this community are weakly interconnected._

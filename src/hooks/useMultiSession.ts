@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type PinConfig, type SessionGroup, type WebSession } from '@/db/laryko.db'
 import {
@@ -129,18 +129,49 @@ export function useMultiSession(platform: Platform) {
     return () => clearInterval(timer)
   }, [isUnlocked, platform])
 
-  // Auto-Lock cuando la app pasa a segundo plano (seguridad)
+  const lastActivityRef = useRef<number>(Date.now())
+  const autoLockMinutes = pinConfig?.autoLockMinutes ?? 5
+
+  // Seguimiento de actividad y Auto-Lock configurable por el usuario
   useEffect(() => {
     if (!hasPinSetup || !isUnlocked) return
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
+    lastActivityRef.current = Date.now()
+
+    const bumpActivity = () => {
+      lastActivityRef.current = Date.now()
+    }
+
+    const events: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'touchstart']
+    events.forEach((ev) => window.addEventListener(ev, bumpActivity, { passive: true }))
+
+    const checkAutoLock = () => {
+      if (autoLockMinutes <= 0) return
+      if (Date.now() - lastActivityRef.current >= autoLockMinutes * 60_000) {
         multiSessionBridge.sleepAllSessions(platform).catch(() => {})
         setIsUnlocked(false)
       }
     }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (autoLockMinutes === -1) {
+          multiSessionBridge.sleepAllSessions(platform).catch(() => {})
+          setIsUnlocked(false)
+        }
+      } else if (document.visibilityState === 'visible') {
+        checkAutoLock()
+      }
+    }
+
     document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [hasPinSetup, isUnlocked, platform])
+    const interval = autoLockMinutes > 0 ? setInterval(checkAutoLock, 15_000) : null
+
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, bumpActivity))
+      document.removeEventListener('visibilitychange', handleVisibility)
+      if (interval) clearInterval(interval)
+    }
+  }, [hasPinSetup, isUnlocked, autoLockMinutes, platform])
 
   const setupPin = useCallback(async (pin: string, pinLength: 4 | 6) => {
     if (pin.length !== pinLength || !/^\d+$/.test(pin)) {
@@ -199,6 +230,23 @@ export function useMultiSession(platform: Platform) {
       setPinError(`PIN incorrecto (${MAX_FAILED_ATTEMPTS - nextAttempts} intentos restantes).`)
     }
     return false
+  }, [])
+
+  const updateAutoLockMinutes = useCallback(async (minutes: number) => {
+    const allowed = new Set([-1, 0, 1, 5, 15, 30, 60])
+    const safeMinutes = allowed.has(minutes) ? minutes : 5
+    await db.pinConfig.update(1, {
+      autoLockMinutes: safeMinutes,
+      updatedAt: new Date(),
+    })
+    lastActivityRef.current = Date.now()
+    if (safeMinutes === 0) {
+      toast.success('PIN desactivado durante la sesión actual (se pedirá al cerrar o reiniciar).')
+    } else if (safeMinutes === -1) {
+      toast.success('Bloqueo automático configurado al minimizar o cambiar de ventana.')
+    } else {
+      toast.success(`Bloqueo automático configurado en ${safeMinutes} min de inactividad.`)
+    }
   }, [])
 
   const lockNow = useCallback(async (sleepAllOnLock = true) => {
@@ -404,6 +452,7 @@ export function useMultiSession(platform: Platform) {
     supportsTrueIsolation: multiSessionBridge.supportsTrueIsolation(platform),
     setupPin,
     verifyPin,
+    updateAutoLockMinutes,
     lockNow,
     createGroup,
     createSession,
