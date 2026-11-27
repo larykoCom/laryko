@@ -384,9 +384,9 @@
     "semantic_hash": "659b761b74f90faef9a0c9f6fa2fd730"
   },
   "src/components/UserPanel/UserPanel.tsx": {
-    "mtime": 1795818896.7899425,
-    "seen": 1795818924.453009,
-    "ast_hash": "02b27b58bdc4aee72ec199d42ded224a",
+    "mtime": 1795823638.5020638,
+    "seen": 1795823671.376273,
+    "ast_hash": "1b85f22525435cd1417931c8a088bd38",
     "semantic_hash": ""
   },
   "src/components/UserPanel/index.ts": {
@@ -516,9 +516,9 @@
     "semantic_hash": ""
   },
   "src/utils/integrationsBridge.ts": {
-    "mtime": 1795818764.7479277,
-    "seen": 1795818924.453044,
-    "ast_hash": "5447d1e2fb944e91ba87cb46ad75539f",
+    "mtime": 1795823633.038251,
+    "seen": 1795823671.376309,
+    "ast_hash": "f70c1b973792161cb6ac6dcbbd8d509d",
     "semantic_hash": ""
   },
   "src/utils/multiSessionBridge.ts": {
@@ -558,8 +558,8 @@
     "semantic_hash": "a047edda46654955550bf99d9ffa64fa"
   },
   "src/utils/vaultCrypto.ts": {
-    "mtime": 1795818698.4159548,
-    "seen": 1795818924.453053,
+    "mtime": 1795819033.118062,
+    "seen": 1795823009.846431,
     "ast_hash": "df5dbe0bf4aa05fb1ec42a49daebc307",
     "semantic_hash": ""
   },

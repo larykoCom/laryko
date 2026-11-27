@@ -34,9 +34,15 @@ import {
 } from '@/utils/vaultCrypto'
 import {
   categorizeMimeType,
+  createDropboxPkceChallenge,
+  deleteFileFromStorageAccount,
+  exchangeDropboxPkceCode,
   formatFileSize,
+  getLocalStorageQuota,
+  getStorageAccountQuota,
   listCloudFilesForAccount,
   uploadFileToStorageAccount,
+  type StorageQuotaInfo,
 } from '@/utils/integrationsBridge'
 import { generateSessionUuid } from '@/utils/pinCrypto'
 import { playNotificationSound } from '@/utils/soundEngine'
@@ -168,6 +174,42 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
   const [newStorageEndpoint, setNewStorageEndpoint] = useState('')
   const [newStorageAccessKey, setNewStorageAccessKey] = useState('')
   const [newStorageSecretKey, setNewStorageSecretKey] = useState('')
+  const [dropboxVerifier, setDropboxVerifier] = useState('')
+  const [dropboxAuthCode, setDropboxAuthCode] = useState('')
+  const [confirmDeleteMediaUuid, setConfirmDeleteMediaUuid] = useState<string | null>(null)
+  const [localQuota, setLocalQuota] = useState<StorageQuotaInfo | null>(null)
+  const [accountQuotas, setAccountQuotas] = useState<Record<string, StorageQuotaInfo>>({})
+
+  const refreshAllQuotas = useCallback(async (accounts: StorageAccount[]) => {
+    const local = await getLocalStorageQuota()
+    if (local) setLocalQuota(local)
+    const next: Record<string, StorageQuotaInfo> = {}
+    for (const acc of accounts) {
+      try {
+        next[acc.id] = await getStorageAccountQuota(acc)
+      } catch {
+        // Ignorar si falta token o sin conexión
+      }
+    }
+    setAccountQuotas((prev) => ({ ...prev, ...next }))
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'storage' && vaultUnlocked) {
+      void refreshAllQuotas(draft.storageAccounts ?? [])
+    }
+  }, [activeTab, vaultUnlocked, draft.storageAccounts, refreshAllQuotas])
+
+  useEffect(() => {
+    const accounts = draft.storageAccounts ?? []
+    if (accounts.length > 0) {
+      if (uploadTargetStorage === 'local' || !accounts.some((a) => a.id === uploadTargetStorage)) {
+        setUploadTargetStorage(accounts[0].id)
+      }
+    } else if (uploadTargetStorage !== 'local') {
+      setUploadTargetStorage('local')
+    }
+  }, [draft.storageAccounts, uploadTargetStorage])
 
   const hasAiConfigured = Boolean(
     vault.openaiApiKey.trim() ||
@@ -1605,6 +1647,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                 uploadedCount++
               }
               toast.success(`${uploadedCount} archivo(s) agregado(s) a Medios.`)
+              void refreshAllQuotas(storageAccounts)
             } finally {
               setUploadingMedia(false)
             }
@@ -1614,7 +1657,9 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             setUploadingMedia(true)
             try {
               const remoteFiles = await listCloudFilesForAccount(account)
+              const remoteSet = new Set(remoteFiles.map((f) => f.remoteKey))
               let added = 0
+              let removed = 0
               for (const rf of remoteFiles) {
                 const exists = mediaItems.some(
                   (m) => m.storageId === account.id && m.remoteKey === rf.remoteKey
@@ -1634,7 +1679,21 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                   added++
                 }
               }
-              toast.success(`Sincronizados ${added} archivo(s) nuevo(s) desde ${account.label}.`)
+              for (const localItem of mediaItems) {
+                if (
+                  localItem.storageId === account.id &&
+                  localItem.remoteKey &&
+                  !remoteSet.has(localItem.remoteKey) &&
+                  localItem.id !== undefined
+                ) {
+                  await db.mediaItems.delete(localItem.id)
+                  removed++
+                }
+              }
+              await refreshAllQuotas(storageAccounts)
+              toast.success(
+                `Sincronizado ${account.label}: +${added} nuevo(s), -${removed} eliminado(s).`
+              )
             } catch (err) {
               toast.error(err instanceof Error ? err.message : 'No se pudo listar archivos de la nube.')
             } finally {
@@ -1670,6 +1729,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             }
             setDraft(nextVault)
             await saveVault(nextVault)
+            setUploadTargetStorage(newAcc.id)
             setNewStorageLabel('')
             setNewStorageAccountId('')
             setNewStorageBucket('')
@@ -1696,12 +1756,18 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                       onChange={(e) => setUploadTargetStorage(e.target.value)}
                       aria-label="Destino de subida"
                     >
-                      <option value="local">Guardar en: Local (Offline-First)</option>
-                      {storageAccounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          Guardar en: {acc.label} ({acc.provider.toUpperCase()})
-                        </option>
-                      ))}
+                      {storageAccounts.length === 0 ? (
+                        <option value="local">Guardar en: Local (Sin nube configurada)</option>
+                      ) : (
+                        <>
+                          {storageAccounts.map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              Guardar en Nube: {acc.label} ({acc.provider.toUpperCase()})
+                            </option>
+                          ))}
+                          <option value="local">Guardar solo en Local (Offline)</option>
+                        </>
+                      )}
                     </select>
                     <label
                       className={styles.primaryBtn}
@@ -1803,20 +1869,91 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                                 <Download size={13} />
                               </button>
                             )}
-                            <button
-                              type="button"
-                              className={styles.secondaryBtn}
-                              style={{ height: 28, padding: '0 8px', color: '#ef4444' }}
-                              title="Eliminar"
-                              onClick={async () => {
-                                if (item.id !== undefined) {
-                                  await db.mediaItems.delete(item.id)
-                                  toast.info(`${item.name} eliminado de Medios.`)
-                                }
-                              }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            {confirmDeleteMediaUuid === item.uuid ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' }}>
+                                <button
+                                  type="button"
+                                  className={styles.secondaryBtn}
+                                  style={{ height: 26, padding: '0 7px', fontSize: 11 }}
+                                  onClick={async () => {
+                                    if (item.id !== undefined) {
+                                      await db.mediaItems.delete(item.id)
+                                      toast.info(`${item.name} quitado de la app.`)
+                                    }
+                                    setConfirmDeleteMediaUuid(null)
+                                  }}
+                                >
+                                  Solo app
+                                </button>
+                                <button
+                                  type="button"
+                                  style={{
+                                    height: 26,
+                                    padding: '0 7px',
+                                    fontSize: 11,
+                                    borderRadius: 'var(--radius-full)',
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: '#ffffff',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={async () => {
+                                    const acc = storageAccounts.find((a) => a.id === item.storageId)
+                                    if (acc && item.remoteKey) {
+                                      try {
+                                        await deleteFileFromStorageAccount(acc, item.remoteKey)
+                                      } catch (err) {
+                                        toast.error(
+                                          `Error borrando en ${acc.label}: ${
+                                            err instanceof Error ? err.message : 'error'
+                                          }`
+                                        )
+                                        setConfirmDeleteMediaUuid(null)
+                                        return
+                                      }
+                                    }
+                                    if (item.id !== undefined) {
+                                      await db.mediaItems.delete(item.id)
+                                    }
+                                    setConfirmDeleteMediaUuid(null)
+                                    toast.success(`${item.name} eliminado de la app y de la nube.`)
+                                    void refreshAllQuotas(storageAccounts)
+                                  }}
+                                >
+                                  App + Nube
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.secondaryBtn}
+                                  style={{ height: 26, padding: '0 6px', fontSize: 11 }}
+                                  onClick={() => setConfirmDeleteMediaUuid(null)}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className={styles.secondaryBtn}
+                                style={{ height: 28, padding: '0 8px', color: '#ef4444' }}
+                                title="Eliminar"
+                                onClick={async () => {
+                                  const hasCloud = Boolean(
+                                    item.remoteKey &&
+                                      storageAccounts.some((a) => a.id === item.storageId)
+                                  )
+                                  if (hasCloud) {
+                                    setConfirmDeleteMediaUuid(item.uuid)
+                                  } else if (item.id !== undefined) {
+                                    await db.mediaItems.delete(item.id)
+                                    toast.info(`${item.name} eliminado de Medios.`)
+                                  }
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1913,7 +2050,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                           newStorageProvider === 'gdrive'
                             ? 'Client ID (opcional)'
                             : newStorageProvider === 'dropbox'
-                              ? 'App Key (opcional)'
+                              ? 'App Key de Dropbox (ej. u2sj3l...)'
                               : 'Access Key ID (opcional)'
                         }
                         value={newStorageAccessKey}
@@ -1932,10 +2069,132 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                       />
                     </div>
 
+                    {newStorageProvider === 'dropbox' && (
+                      <div
+                        className={styles.subCard}
+                        style={{ padding: 12, gap: 8, background: 'var(--color-bg-secondary)' }}
+                      >
+                        <p className={styles.hint} style={{ margin: 0 }}>
+                          <strong>Cómo conectar Dropbox:</strong> En tu Dropbox App Console → pestaña{' '}
+                          <em>Permissions</em> activa <code>account_info.read</code>,{' '}
+                          <code>files.metadata.read</code>,{' '}
+                          <code>files.content.read</code> y <code>files.content.write</code>. Luego pega tu{' '}
+                          <strong>App Key</strong> arriba y pulsa <strong>Autorizar en Dropbox</strong> (o pega directo tu <em>Generated access token</em>).
+                        </p>
+                        <div className={styles.actionsRow}>
+                          <button
+                            type="button"
+                            className={styles.secondaryBtn}
+                            onClick={async () => {
+                              const url = 'https://www.dropbox.com/developers/apps'
+                              if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+                                const { invoke } = await import('@tauri-apps/api/core')
+                                await invoke('open_external_url', { url }).catch(() => {})
+                              } else {
+                                window.open(url, '_blank', 'noopener,noreferrer')
+                              }
+                            }}
+                          >
+                            Abrir Dropbox Console ↗
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.secondaryBtn}
+                            disabled={!newStorageAccessKey.trim()}
+                            onClick={async () => {
+                              const { verifier, authUrl } = await createDropboxPkceChallenge(
+                                newStorageAccessKey
+                              )
+                              setDropboxVerifier(verifier)
+                              if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+                                const { invoke } = await import('@tauri-apps/api/core')
+                                await invoke('open_external_url', { url: authUrl }).catch(() => {})
+                              } else {
+                                window.open(authUrl, '_blank', 'noopener,noreferrer')
+                              }
+                              toast.info('Autoriza en el navegador, copia el código y pégalo abajo.')
+                            }}
+                          >
+                            Autorizar en Dropbox (OAuth) ↗
+                          </button>
+                        </div>
+                        {dropboxVerifier && (
+                          <div className={styles.inlineRow}>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              placeholder="Pega aquí el código de autorización de Dropbox"
+                              value={dropboxAuthCode}
+                              onChange={(e) => setDropboxAuthCode(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              className={styles.primaryBtn}
+                              disabled={!dropboxAuthCode.trim()}
+                              onClick={async () => {
+                                try {
+                                  const tokens = await exchangeDropboxPkceCode(
+                                    newStorageAccessKey,
+                                    dropboxAuthCode,
+                                    dropboxVerifier
+                                  )
+                                  setNewStorageSecretKey(tokens.accessToken)
+                                  setDropboxVerifier('')
+                                  setDropboxAuthCode('')
+                                  toast.success('Token de Dropbox obtenido. Ahora guarda la cuenta.')
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof Error ? err.message : 'Error intercambiando código.'
+                                  )
+                                }
+                              }}
+                            >
+                              Obtener Token
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {newStorageProvider === 'gdrive' && (
+                      <div className={styles.actionsRow}>
+                        <button
+                          type="button"
+                          className={styles.secondaryBtn}
+                          onClick={async () => {
+                            const url = 'https://console.cloud.google.com/apis/credentials'
+                            if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+                              const { invoke } = await import('@tauri-apps/api/core')
+                              await invoke('open_external_url', { url }).catch(() => {})
+                            } else {
+                              window.open(url, '_blank', 'noopener,noreferrer')
+                            }
+                          }}
+                        >
+                          Abrir Google Cloud Console ↗
+                        </button>
+                      </div>
+                    )}
+
                     <button type="submit" className={styles.primaryBtn} disabled={busy}>
                       Guardar Cuenta en Bóveda
                     </button>
                   </form>
+                )}
+
+                {storageAccounts.length === 0 && localQuota && localQuota.totalBytes !== null && (
+                  <div className={styles.storageAccountRow}>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ fontSize: 'var(--font-size-xs)' }}>
+                        Almacenamiento Local (Sin nube configurada)
+                      </strong>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                        {formatFileSize(localQuota.availableBytes ?? 0)} disponibles ·{' '}
+                        {formatFileSize(localQuota.usedBytes)} usados de{' '}
+                        {formatFileSize(localQuota.totalBytes)}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {storageAccounts.length === 0 ? (
@@ -1944,17 +2203,40 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                   </p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {storageAccounts.map((acc) => (
-                      <div key={acc.id} className={styles.storageAccountRow}>
-                        <div>
-                          <strong style={{ fontSize: 'var(--font-size-sm)' }}>{acc.label}</strong>
-                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                            {acc.provider.toUpperCase()}
-                            {acc.bucket ? ` · Bucket: ${acc.bucket}` : ''}
-                            {acc.endpoint ? ` · ${acc.endpoint}` : ''}
+                    {storageAccounts.map((acc) => {
+                      const quota = accountQuotas[acc.id]
+                      const usedPct =
+                        quota?.totalBytes && quota.totalBytes > 0
+                          ? Math.min(100, Math.round((quota.usedBytes / quota.totalBytes) * 100))
+                          : null
+                      return (
+                        <div key={acc.id} className={styles.storageAccountRow}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <strong style={{ fontSize: 'var(--font-size-sm)' }}>{acc.label}</strong>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                              {acc.provider.toUpperCase()}
+                              {acc.bucket ? ` · Bucket: ${acc.bucket}` : ''}
+                              {acc.endpoint ? ` · ${acc.endpoint}` : ''}
+                            </div>
+                            {quota && (
+                              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                                  {quota.availableBytes !== null && quota.totalBytes !== null
+                                    ? `${formatFileSize(quota.availableBytes)} disponibles (${formatFileSize(quota.usedBytes)} / ${formatFileSize(quota.totalBytes)})`
+                                    : quota.note ?? 'Capacidad no disponible'}
+                                </span>
+                                {usedPct !== null && (
+                                  <div className={styles.progressTrack} style={{ height: 5, maxWidth: 240 }}>
+                                    <div
+                                      className={styles.progressFill}
+                                      style={{ width: `${usedPct}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           {(acc.provider === 'dropbox' || acc.provider === 'gdrive') && acc.secretKey && (
                             <button
                               type="button"
@@ -1993,7 +2275,8 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                           </button>
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>

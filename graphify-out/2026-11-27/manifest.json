@@ -222,8 +222,8 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795818214.5664103,
-    "seen": 1795818243.995297,
+    "mtime": 1795818275.4521627,
+    "seen": 1795818924.452964,
     "ast_hash": "5f9d10cea5514cc8d365bd3abc2c633b",
     "semantic_hash": ""
   },
@@ -384,9 +384,9 @@
     "semantic_hash": "659b761b74f90faef9a0c9f6fa2fd730"
   },
   "src/components/UserPanel/UserPanel.tsx": {
-    "mtime": 1795818213.4313393,
-    "seen": 1795818243.995321,
-    "ast_hash": "2ee6a0ef47b972fd250fe2a0d6b9329e",
+    "mtime": 1795823466.652391,
+    "seen": 1795823500.0593522,
+    "ast_hash": "ff92d84a56dd140dd8a25bb1d42f2beb",
     "semantic_hash": ""
   },
   "src/components/UserPanel/index.ts": {
@@ -408,9 +408,9 @@
     "semantic_hash": "968f50fc82a31833100828aad799d267"
   },
   "src/db/laryko.db.ts": {
-    "mtime": 1795661804.6650348,
-    "seen": 1795661939.1338701,
-    "ast_hash": "0d23fcd2366dc5f77ce5fb0ebb6282f7",
+    "mtime": 1795818694.4697278,
+    "seen": 1795818924.453013,
+    "ast_hash": "2a4dc10e840278d70729a3e8486c1a29",
     "semantic_hash": ""
   },
   "src/hooks/index.ts": {
@@ -516,9 +516,9 @@
     "semantic_hash": ""
   },
   "src/utils/integrationsBridge.ts": {
-    "mtime": 1795817182.46163,
-    "seen": 1795817935.223159,
-    "ast_hash": "ee6bfb9681cd7724dca9cfc48a515810",
+    "mtime": 1795823215.8692005,
+    "seen": 1795823500.059385,
+    "ast_hash": "064f1945bf81708b8e1e8de293f95510",
     "semantic_hash": ""
   },
   "src/utils/multiSessionBridge.ts": {
@@ -558,9 +558,9 @@
     "semantic_hash": "a047edda46654955550bf99d9ffa64fa"
   },
   "src/utils/vaultCrypto.ts": {
-    "mtime": 1795818210.9940605,
-    "seen": 1795818243.9953458,
-    "ast_hash": "11c33d2a2d07bd1b2ea7ae845da66d82",
+    "mtime": 1795819033.118062,
+    "seen": 1795823009.846431,
+    "ast_hash": "df5dbe0bf4aa05fb1ec42a49daebc307",
     "semantic_hash": ""
   },
   "src/vite-env.d.ts": {

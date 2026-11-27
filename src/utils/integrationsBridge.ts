@@ -499,7 +499,86 @@ export function categorizeMimeType(mime: string, name: string): MediaCategory {
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+export interface StorageQuotaInfo {
+  usedBytes: number
+  totalBytes: number | null
+  availableBytes: number | null
+  note?: string
+}
+
+export async function getLocalStorageQuota(): Promise<StorageQuotaInfo | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return null
+  try {
+    const est = await navigator.storage.estimate()
+    const used = est.usage ?? 0
+    const total = est.quota ?? null
+    return {
+      usedBytes: used,
+      totalBytes: total,
+      availableBytes: total !== null ? Math.max(0, total - used) : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function getStorageAccountQuota(
+  account: StorageAccount
+): Promise<StorageQuotaInfo> {
+  const token = (account.secretKey ?? '').trim()
+
+  if (account.provider === 'dropbox') {
+    if (!token) throw new Error('Falta OAuth Access Token de Dropbox.')
+    const res = await fetch('https://api.dropboxapi.com/2/users/get_space_usage', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error(`Dropbox HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      used?: number
+      allocation?: { allocated?: number }
+    }
+    const used = data.used ?? 0
+    const total = data.allocation?.allocated ?? null
+    return {
+      usedBytes: used,
+      totalBytes: total,
+      availableBytes: total !== null ? Math.max(0, total - used) : null,
+    }
+  }
+
+  if (account.provider === 'gdrive') {
+    if (!token) throw new Error('Falta OAuth Access Token de Google Drive.')
+    const res = await fetch(
+      'https://www.googleapis.com/drive/v3/about?fields=storageQuota',
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (!res.ok) throw new Error(`Google Drive HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      storageQuota?: { limit?: string; usage?: string }
+    }
+    const used = Number(data.storageQuota?.usage ?? 0)
+    const total = data.storageQuota?.limit ? Number(data.storageQuota.limit) : null
+    return {
+      usedBytes: used,
+      totalBytes: total,
+      availableBytes: total !== null ? Math.max(0, total - used) : null,
+    }
+  }
+
+  return {
+    usedBytes: 0,
+    totalBytes: null,
+    availableBytes: null,
+    note:
+      account.provider === 'r2' || account.provider === 's3'
+        ? 'Almacenamiento por demanda (sin límite fijo)'
+        : 'Consulta de cuota no expuesta por este endpoint',
+  }
 }
 
 export async function uploadFileToStorageAccount(
@@ -616,4 +695,100 @@ export async function listCloudFilesForAccount(
   }
 
   return []
+}
+
+export async function deleteFileFromStorageAccount(
+  account: StorageAccount,
+  remoteKey: string
+): Promise<void> {
+  const token = (account.secretKey ?? '').trim()
+  if (!token || !remoteKey.trim()) {
+    throw new Error('Falta token o ruta remota del archivo.')
+  }
+
+  if (account.provider === 'dropbox') {
+    const res = await fetch('https://api.dropboxapi.com/2/files/delete_v2', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path: remoteKey }),
+    })
+    if (!res.ok) throw new Error(`Dropbox HTTP ${res.status}`)
+    return
+  }
+
+  if (account.provider === 'gdrive') {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(remoteKey)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    )
+    if (!res.ok && res.status !== 204) {
+      throw new Error(`Google Drive HTTP ${res.status}`)
+    }
+  }
+}
+
+function toBase64Url(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+export async function createDropboxPkceChallenge(appKey: string): Promise<{
+  verifier: string
+  authUrl: string
+}> {
+  const random = new Uint8Array(32)
+  crypto.getRandomValues(random)
+  const verifier = toBase64Url(random)
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
+  const challenge = toBase64Url(new Uint8Array(digest))
+  const params = new URLSearchParams({
+    client_id: appKey.trim(),
+    response_type: 'code',
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    token_access_type: 'offline',
+  })
+  return {
+    verifier,
+    authUrl: `https://www.dropbox.com/oauth2/authorize?${params.toString()}`,
+  }
+}
+
+export async function exchangeDropboxPkceCode(
+  appKey: string,
+  code: string,
+  verifier: string
+): Promise<{ accessToken: string; refreshToken?: string }> {
+  const body = new URLSearchParams({
+    code: code.trim(),
+    grant_type: 'authorization_code',
+    client_id: appKey.trim(),
+    code_verifier: verifier,
+  })
+  const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Dropbox OAuth HTTP ${res.status}${text ? `: ${text}` : ''}`)
+  }
+  const data = (await res.json()) as { access_token?: string; refresh_token?: string }
+  if (!data.access_token) {
+    throw new Error('Dropbox no devolvió access_token.')
+  }
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+  }
 }
