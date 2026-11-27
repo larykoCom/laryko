@@ -384,9 +384,9 @@
     "semantic_hash": "659b761b74f90faef9a0c9f6fa2fd730"
   },
   "src/components/UserPanel/UserPanel.tsx": {
-    "mtime": 1795815061.1750603,
-    "seen": 1795815080.2877948,
-    "ast_hash": "43853506b1c81e8d09aa6122a097c184",
+    "mtime": 1795815325.2440238,
+    "seen": 1795815344.25365,
+    "ast_hash": "2ab64f86fc261cf9057be5d37133c420",
     "semantic_hash": ""
   },
   "src/components/UserPanel/index.ts": {
@@ -480,8 +480,8 @@
     "semantic_hash": ""
   },
   "src/hooks/useUserPanel.ts": {
-    "mtime": 1795815025.7356453,
-    "seen": 1795815080.2878091,
+    "mtime": 1795815150.2331538,
+    "seen": 1795815344.2536662,
     "ast_hash": "f5280e0b894bd06c331b240c1ddb218d",
     "semantic_hash": ""
   },

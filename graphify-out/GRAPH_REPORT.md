@@ -1,7 +1,7 @@
 # Graph Report - laryko  (2026-11-27)
 
 ## Corpus Check
-- 115 files · ~71,374 words
+- 115 files · ~71,446 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 55 file(s) not represented in the graph (top: .css 19, .xml 13, (none) 8)
 - WARNING: 55 of 253 files seen (22%) have no supported extractor and are missing from this graph entirely. It may look complete while representing only part of the codebase.
@@ -12,7 +12,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7878fb36`
+- Built from commit: `e4c73995`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -92,10 +92,10 @@
 ## Surprising Connections (you probably didn't know these)
 - `Añadido (Added)` --references--> `NativeIOSBridge`  [INFERRED]
   CHANGELOG.md → ios/App/App/SceneDelegate.swift
-- `Uso estándar:` --references--> `triggerNativeHaptic()`  [INFERRED]
-  AGENTS.md → src/utils/nativeIOSBridge.ts
 - `🔄 Sistema Integrado de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
   DEVELOPMENT.md → src/hooks/useAppUpdater.ts
+- `Uso estándar:` --references--> `triggerNativeHaptic()`  [INFERRED]
+  AGENTS.md → src/utils/nativeIOSBridge.ts
 - `3. Sistema Integrado de Verificación de Actualizaciones (`useAppUpdater`)` --references--> `useAppUpdater()`  [INFERRED]
   prompt.md → src/hooks/useAppUpdater.ts
 - `🚀 Stack Tecnológico` --references--> `useOnlineStatus()`  [INFERRED]

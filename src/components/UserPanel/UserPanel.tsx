@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Bot,
   Trash2,
+  LogOut,
 } from 'lucide-react'
 import { useUserPanel } from '@/hooks/useUserPanel'
 import { EMPTY_VAULT, type AiProviderId, type UserIntegrationsVault } from '@/utils/vaultCrypto'
@@ -70,6 +71,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
 
   const [activeTab, setActiveTab] = useState<UserPanelTab>(requestedTab ?? 'sync')
   const [confirmDanger, setConfirmDanger] = useState<'cloud' | 'wipe' | 'wipe-all' | null>(null)
+  const [confirmLogout, setConfirmLogout] = useState(false)
   const [aiModelsMap, setAiModelsMap] = useState<Partial<Record<AiProviderId, string[]>>>({})
   const [loadingModelsFor, setLoadingModelsFor] = useState<AiProviderId | null>(null)
   const lastFetchedKeyRef = useRef<Partial<Record<AiProviderId, string>>>({})
@@ -428,11 +430,45 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             type="button"
             className={styles.secondaryBtn}
             onClick={lockVault}
-            title="Bloquear bóveda"
+            title="Bloquear bóveda manteniendo este perfil"
           >
             <Lock size={15} />
             <span>Bloquear</span>
           </button>
+
+          {!confirmLogout ? (
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              onClick={() => setConfirmLogout(true)}
+              title="Cerrar sesión local y cambiar de usuario"
+            >
+              <LogOut size={15} />
+              <span>Cerrar Sesión</span>
+            </button>
+          ) : (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                className={styles.dangerBtn}
+                disabled={busy}
+                onClick={async () => {
+                  setConfirmLogout(false)
+                  await wipeAllLocalData(false)
+                }}
+              >
+                <span>Confirmar salida</span>
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                disabled={busy}
+                onClick={() => setConfirmLogout(false)}
+              >
+                <span>Cancelar</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
