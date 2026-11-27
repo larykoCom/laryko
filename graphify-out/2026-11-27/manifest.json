@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795814126.7765505,
-    "seen": 1795814154.2127922,
-    "ast_hash": "f5666250fefff6a8aac3a93aa1c5eb04",
+    "mtime": 1795814184.3891957,
+    "seen": 1795814207.649961,
+    "ast_hash": "370ba5d3007f6ac00598ecaac512af45",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -1170,9 +1170,9 @@
     "semantic_hash": ""
   },
   "src-tauri/src/commands/sessions.rs": {
-    "mtime": 1795814062.4681292,
-    "seen": 1795814154.2127879,
-    "ast_hash": "6d2dd78462ba501c4447da4d5999b6fb",
+    "mtime": 1795814170.7023919,
+    "seen": 1795814207.649956,
+    "ast_hash": "b02f7ba05840123a33005babb8e9d35e",
     "semantic_hash": ""
   },
   "src-tauri/src/commands/updater.rs": {

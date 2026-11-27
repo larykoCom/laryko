@@ -148,6 +148,17 @@ export interface SyncedPreferences {
   displayName: string
   idleSleepMinutes: number
   autoSync: boolean
+  soundPreset?: string
+  soundVolume?: number
+  alarmVolume?: number
+}
+
+export interface SyncedPinConfig {
+  hash: string
+  salt: string
+  iterations: number
+  pinLength: 4 | 6
+  autoLockMinutes: number
 }
 
 export interface SyncedSessionGroup {
@@ -189,6 +200,7 @@ export interface FullSyncBundle {
   updatedAtMs?: number
   vault: UserIntegrationsVault
   prefs?: SyncedPreferences
+  pinConfig?: SyncedPinConfig
   sessionGroups?: SyncedSessionGroup[]
   sessions?: SyncedWebSession[]
   reminders?: SyncedReminder[]

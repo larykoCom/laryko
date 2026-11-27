@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type UserPreferences } from '@/db/laryko.db'
+import { db, type NotificationSoundPreset, type UserPreferences } from '@/db/laryko.db'
 import {
   EMPTY_VAULT,
   decodePairingToken,
@@ -121,6 +121,7 @@ export function useUserPanel(platform: Platform) {
   const buildFullBundle = useCallback(
     async (activeVault: UserIntegrationsVault, overridePrefs?: UserPreferences): Promise<FullSyncBundle> => {
       const currentPrefs = overridePrefs ?? (await db.userPrefs.get(1)) ?? DEFAULT_PREFS
+      const pinCfg = await db.pinConfig.get(1)
       const groups = await db.sessionGroups.orderBy('order').toArray()
       const sessions = await db.sessions.orderBy('id').toArray()
       const reminders = await db.reminders.orderBy('dueAt').toArray()
@@ -132,7 +133,21 @@ export function useUserPanel(platform: Platform) {
           displayName: currentPrefs.displayName,
           idleSleepMinutes: currentPrefs.idleSleepMinutes,
           autoSync: currentPrefs.autoSync,
+          soundPreset: currentPrefs.soundPreset,
+          soundVolume: currentPrefs.soundVolume,
+          alarmVolume: currentPrefs.alarmVolume,
         },
+        ...(pinCfg
+          ? {
+              pinConfig: {
+                hash: pinCfg.hash,
+                salt: pinCfg.salt,
+                iterations: pinCfg.iterations,
+                pinLength: pinCfg.pinLength,
+                autoLockMinutes: pinCfg.autoLockMinutes,
+              },
+            }
+          : {}),
         sessionGroups: groups.map((g) => ({
           id: g.id,
           name: g.name,
@@ -145,6 +160,7 @@ export function useUserPanel(platform: Platform) {
           name: s.name,
           url: s.url,
           color: s.color,
+          icon: s.icon,
           order: s.order,
         })),
         reminders: reminders.map((r) => ({
@@ -169,25 +185,59 @@ export function useUserPanel(platform: Platform) {
   )
 
   const applyFullBundle = useCallback(
-    async (bundle: FullSyncBundle, envelope: EncryptedVaultEnvelope, masterSecret: string) => {
-      await db.userVault.put({
-        id: 1,
-        salt: envelope.salt,
-        iv: envelope.iv,
-        ciphertext: envelope.ciphertext,
-        updatedAt: new Date(),
-      })
+    async (
+      bundle: FullSyncBundle,
+      envelope: EncryptedVaultEnvelope,
+      masterSecret: string,
+      options?: { isRemoteNewer?: boolean }
+    ) => {
+      const isRemoteNewer = options?.isRemoteNewer ?? true
 
-      if (bundle.prefs) {
-        const current = (await db.userPrefs.get(1)) ?? DEFAULT_PREFS
-        await db.userPrefs.put({
-          ...current,
-          displayName: bundle.prefs.displayName,
-          idleSleepMinutes: bundle.prefs.idleSleepMinutes,
-          autoSync: bundle.prefs.autoSync,
-          lastSyncAt: new Date(),
+      if (isRemoteNewer) {
+        await db.userVault.put({
+          id: 1,
+          salt: envelope.salt,
+          iv: envelope.iv,
+          ciphertext: envelope.ciphertext,
           updatedAt: new Date(),
         })
+
+        if (bundle.prefs) {
+          const current = (await db.userPrefs.get(1)) ?? DEFAULT_PREFS
+          await db.userPrefs.put({
+            ...current,
+            displayName: bundle.prefs.displayName,
+            idleSleepMinutes: bundle.prefs.idleSleepMinutes,
+            autoSync: bundle.prefs.autoSync,
+            soundPreset: (bundle.prefs.soundPreset as NotificationSoundPreset | undefined) ?? current.soundPreset,
+            soundVolume: bundle.prefs.soundVolume ?? current.soundVolume,
+            alarmVolume: bundle.prefs.alarmVolume ?? current.alarmVolume,
+            lastSyncAt: new Date(),
+            updatedAt: new Date(),
+          })
+        }
+
+        if (bundle.pinConfig) {
+          const existingPin = await db.pinConfig.get(1)
+          if (!existingPin) {
+            await db.pinConfig.put({
+              id: 1,
+              hash: bundle.pinConfig.hash,
+              salt: bundle.pinConfig.salt,
+              iterations: bundle.pinConfig.iterations,
+              pinLength: bundle.pinConfig.pinLength,
+              failedAttempts: 0,
+              lockedUntil: null,
+              autoLockMinutes: bundle.pinConfig.autoLockMinutes,
+              updatedAt: new Date(),
+            })
+          } else {
+            await db.pinConfig.update(1, {
+              autoLockMinutes: bundle.pinConfig.autoLockMinutes,
+              updatedAt: new Date(),
+            })
+          }
+        }
       }
 
       if (bundle.sessionGroups && bundle.sessionGroups.length > 0) {
@@ -217,10 +267,20 @@ export function useUserPanel(platform: Platform) {
               name: s.name,
               url: s.url,
               color: s.color,
+              icon: s.icon,
               order: s.order,
               status: 'sleeping',
               lastActiveAt: new Date(),
               createdAt: new Date(),
+            })
+          } else if (isRemoteNewer && exists.id !== undefined) {
+            await db.sessions.update(exists.id, {
+              groupId: s.groupId,
+              name: s.name,
+              url: s.url,
+              color: s.color,
+              icon: s.icon,
+              order: s.order,
             })
           }
         }
@@ -244,7 +304,7 @@ export function useUserPanel(platform: Platform) {
               recurrence: r.recurrence,
               recurrenceInterval: r.recurrenceInterval,
               recurrenceUnit: r.recurrenceUnit,
-              soundPreset: r.soundPreset as typeof exists extends never ? never : undefined,
+              soundPreset: r.soundPreset as NotificationSoundPreset | 'default' | undefined,
               createdAt: remoteUpdated,
               updatedAt: remoteUpdated,
             })
@@ -261,31 +321,54 @@ export function useUserPanel(platform: Platform) {
               recurrence: r.recurrence,
               recurrenceInterval: r.recurrenceInterval,
               recurrenceUnit: r.recurrenceUnit,
+              soundPreset: r.soundPreset as NotificationSoundPreset | 'default' | undefined,
               updatedAt: remoteUpdated,
             })
           }
         }
       }
 
-      setVault(bundle.vault)
-      setPassphrase(masterSecret)
-      setVaultUnlocked(true)
+      if (isRemoteNewer) {
+        setVault(bundle.vault)
+        setPassphrase(masterSecret)
+        setVaultUnlocked(true)
+      }
     },
     []
   )
 
+  const syncInFlightRef = useRef(false)
+
   const bidirectionalSync = useCallback(async () => {
     if (!vaultUnlocked || !passphrase || !vault.neonDatabaseUrl.trim()) return
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    if (syncInFlightRef.current) return
 
     const currentPrefs = (await db.userPrefs.get(1)) ?? DEFAULT_PREFS
     if (!currentPrefs.autoSync) return
 
+    syncInFlightRef.current = true
     try {
       const rawRemote = await integrationsBridge.pullVaultFromNeon(platform, vault.neonDatabaseUrl)
-      if (!rawRemote || currentPrefs.pendingSync) {
-        // Hay cambios locales offline pendientes (o remoto vacío) -> subir a Neon
-        const bundle = await buildFullBundle(vault, currentPrefs)
+      let shouldPush = Boolean(currentPrefs.pendingSync) || !rawRemote
+
+      if (rawRemote) {
+        const envelope = JSON.parse(rawRemote) as EncryptedVaultEnvelope
+        const remoteBundle = await decryptSyncBundle(envelope, passphrase)
+        const remoteTs = remoteBundle.updatedAtMs ?? 0
+        const localTs = currentPrefs.lastSyncAt ? currentPrefs.lastSyncAt.getTime() : 0
+        const isRemoteNewer = remoteTs > localTs
+
+        // Siempre fusionar cambios remotos (sesiones/grupos/recordatorios) antes de subir
+        await applyFullBundle(remoteBundle, envelope, passphrase, { isRemoteNewer })
+        if (isRemoteNewer) {
+          await db.userPrefs.update(1, { lastSyncAt: new Date() })
+        }
+      }
+
+      if (shouldPush) {
+        const latestPrefs = (await db.userPrefs.get(1)) ?? currentPrefs
+        const bundle = await buildFullBundle(vault, latestPrefs)
         const envelope = await encryptSyncBundle(bundle, passphrase)
         await integrationsBridge.syncVaultToNeon(
           platform,
@@ -293,33 +376,43 @@ export function useUserPanel(platform: Platform) {
           JSON.stringify(envelope)
         )
         await db.userPrefs.update(1, { pendingSync: false, lastSyncAt: new Date() })
-        return
-      }
-
-      const envelope = JSON.parse(rawRemote) as EncryptedVaultEnvelope
-      const remoteBundle = await decryptSyncBundle(envelope, passphrase)
-      const remoteTs = remoteBundle.updatedAtMs ?? 0
-      const localTs = currentPrefs.lastSyncAt ? currentPrefs.lastSyncAt.getTime() : 0
-
-      if (remoteTs > localTs) {
-        await applyFullBundle(remoteBundle, envelope, passphrase)
-        await db.userPrefs.update(1, { pendingSync: false, lastSyncAt: new Date() })
       }
     } catch {
       // Offline-first: mantener pendingSync para reintentar al reconectar
+    } finally {
+      syncInFlightRef.current = false
     }
   }, [vaultUnlocked, passphrase, vault, platform, buildFullBundle, applyFullBundle])
 
-  // Sincronización bidireccional automática al recuperar conexión a internet
+  // Sincronización bidireccional automática (al iniciar, al reconectar, al volver a la app y cada 30s)
   useEffect(() => {
     if (!vaultUnlocked || !vault.neonDatabaseUrl.trim()) return
     bidirectionalSync()
 
     const onOnline = () => {
-      bidirectionalSync()
+      void bidirectionalSync()
+    }
+    const onFocus = () => {
+      void bidirectionalSync()
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void bidirectionalSync()
+      }
     }
     window.addEventListener('online', onOnline)
-    return () => window.removeEventListener('online', onOnline)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    const timer = setInterval(() => {
+      void bidirectionalSync()
+    }, 30_000)
+
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+      clearInterval(timer)
+    }
   }, [vaultUnlocked, vault.neonDatabaseUrl, bidirectionalSync])
 
   const savePrefs = useCallback(
@@ -511,17 +604,30 @@ export function useUserPanel(platform: Platform) {
 
   const generatePairingCode = useCallback(async (): Promise<string | null> => {
     if (!vaultUnlocked || !passphrase) return null
-    if (!vault.neonDatabaseUrl.trim()) {
-      setStatusMessage({
-        type: 'error',
-        text: 'Configura primero Neon Postgres como requisito obligatorio para sincronizar.',
-      })
-      return null
-    }
     const bundle = await buildFullBundle(vault)
     const envelope = await encryptSyncBundle(bundle, passphrase)
     return encodePairingToken(envelope)
   }, [vaultUnlocked, passphrase, vault, buildFullBundle])
+
+  const exportConfigFile = useCallback(async (): Promise<boolean> => {
+    const token = await generatePairingCode()
+    if (!token) return false
+    const blob = new Blob([token], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const dateStr = new Date().toISOString().slice(0, 10)
+    a.href = url
+    a.download = `laryko-workspace-${dateStr}.laryko`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    setStatusMessage({
+      type: 'ok',
+      text: 'Configuración y workspace exportados en archivo cifrado (.laryko).',
+    })
+    return true
+  }, [generatePairingCode])
 
   const importPairingCode = useCallback(
     async (token: string, pairingSecret: string): Promise<boolean> => {
@@ -860,6 +966,7 @@ export function useUserPanel(platform: Platform) {
     syncUpToNeon,
     syncDownFromNeon,
     generatePairingCode,
+    exportConfigFile,
     importPairingCode,
     testResend,
     testR2,

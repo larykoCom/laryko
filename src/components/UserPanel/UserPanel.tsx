@@ -53,8 +53,10 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
     saveVault,
     savePrefs,
     testNeon,
+    bidirectionalSync,
     syncUpToNeon,
     generatePairingCode,
+    exportConfigFile,
     importPairingCode,
     testResend,
     testR2,
@@ -288,15 +290,31 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             <div className={styles.importBox}>
               <h3 className={styles.sectionHeading}>
                 <QrCode size={16} />
-                <span>Sincronizar con Código QR / Token</span>
+                <span>Importar Workspace (Archivo .laryko o Código)</span>
               </h3>
               <p className={styles.hint}>
-                Pega el código <code>LARYKO-SYNC:1:...</code> generado desde tu otro dispositivo e ingresa la clave maestra.
+                Carga tu archivo <code>.laryko</code> o pega el código <code>LARYKO-SYNC:1:...</code> de tu otro dispositivo e ingresa la clave maestra.
               </p>
+              <label className={styles.secondaryBtn} style={{ cursor: 'pointer', justifyContent: 'center' }}>
+                <Upload size={14} />
+                <span>Seleccionar Archivo .laryko</span>
+                <input
+                  type="file"
+                  accept=".laryko,.txt"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const text = await file.text()
+                    setImportToken(text.trim())
+                    toast.info(`Archivo ${file.name} cargado. Ingresa tu clave maestra y pulsa Importar.`)
+                  }}
+                />
+              </label>
               <textarea
                 className={styles.textarea}
                 rows={3}
-                placeholder="Pega aquí el código LARYKO-SYNC:1:..."
+                placeholder="O pega aquí el código LARYKO-SYNC:1:..."
                 value={importToken}
                 onChange={(e) => setImportToken(e.target.value)}
               />
@@ -513,56 +531,36 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             <div className={styles.subCard}>
               <h3 className={styles.sectionHeading}>
                 <QrCode size={16} />
-                <span>Sincronizar en todos tus dispositivos (Desktop, iOS, Android y Web)</span>
+                <span>Exportar Configuración & Llevar a Otro Dispositivo (Local-First)</span>
               </h3>
-              {!hasDatabaseConfigured ? (
-                <>
-                  <p className={styles.hint}>
-                    <strong>Paso 1 obligatorio:</strong> Configura primero tu <strong>Base de Datos</strong> (Neon Postgres, Supabase, PostgreSQL u otro proveedor compatible) en la pestaña <em>Base de Datos</em>. Todas tus preferencias, claves y sesiones se guardarán cifradas allí.
-                  </p>
-                  <div className={styles.actionsRow}>
-                    <button
-                      type="button"
-                      className={styles.primaryBtn}
-                      onClick={() => setActiveTab('database')}
-                    >
-                      <Database size={15} />
-                      <span>Configurar Base de Datos</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className={styles.hint}>
-                    Todas tus preferencias, claves de IA, integraciones y sesiones se sincronizan cifradas (AES-GCM-256) con tu Base de Datos y pueden vincularse en otro dispositivo mediante Código / QR.
-                  </p>
+              <p className={styles.hint}>
+                Exporta todo tu perfil, preferencias, claves cifradas (AES-GCM-256), sesiones y agenda en un archivo <code>.laryko</code> o código de vinculación, <strong>sin depender de la nube</strong>.
+              </p>
 
-                  <div className={styles.actionsRow}>
-                    <button
-                      type="button"
-                      className={styles.primaryBtn}
-                      disabled={busy}
-                      onClick={() => syncUpToNeon(draft)}
-                    >
-                      <Upload size={15} />
-                      <span>Sincronizar Todo a Base de Datos</span>
-                    </button>
+              <div className={styles.actionsRow}>
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  disabled={busy}
+                  onClick={() => void exportConfigFile()}
+                >
+                  <Download size={15} />
+                  <span>Exportar Archivo (.laryko)</span>
+                </button>
 
-                    <button
-                      type="button"
-                      className={styles.secondaryBtn}
-                      disabled={busy}
-                      onClick={async () => {
-                        const code = await generatePairingCode()
-                        setPairingCode(code)
-                      }}
-                    >
-                      <QrCode size={15} />
-                      <span>Generar Código de Vinculación</span>
-                    </button>
-                  </div>
-                </>
-              )}
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={busy}
+                  onClick={async () => {
+                    const code = await generatePairingCode()
+                    setPairingCode(code)
+                  }}
+                >
+                  <QrCode size={15} />
+                  <span>Generar Código de Vinculación</span>
+                </button>
+              </div>
 
               {pairingCode && (
                 <div className={styles.pairingResult}>
@@ -579,6 +577,61 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                     <span>Copiar Código Cifrado</span>
                   </button>
                 </div>
+              )}
+            </div>
+
+            <div className={styles.subCard}>
+              <h3 className={styles.sectionHeading}>
+                <RefreshCw size={16} />
+                <span>Sincronización Multi-Dispositivo en la Nube (Opcional)</span>
+              </h3>
+              {!hasDatabaseConfigured ? (
+                <>
+                  <p className={styles.hint}>
+                    <strong>Modo Local-First activo:</strong> Tus datos viven en este dispositivo. Si quieres que todos tus cambios (sesiones, agenda y preferencias) se sincronicen automáticamente entre múltiples dispositivos en la nube, configura tu Base de Datos.
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      onClick={() => setActiveTab('database')}
+                    >
+                      <Database size={15} />
+                      <span>Configurar Base de Datos para Cloud Sync</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className={styles.hint}>
+                    <strong>Multi-Dispositivo activo:</strong> Los cambios realizados en cualquiera de tus dispositivos se fusionan y sincronizan cifrados automáticamente cada 30s, al volver a la app y al reconectar.
+                  </p>
+
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      disabled={busy}
+                      onClick={() => void syncUpToNeon(draft)}
+                    >
+                      <Upload size={15} />
+                      <span>Subir Todo a la Nube</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      disabled={busy}
+                      onClick={async () => {
+                        await bidirectionalSync()
+                        toast.success('Sincronización y fusión multi-dispositivo completada.')
+                      }}
+                    >
+                      <RefreshCw size={15} />
+                      <span>Sincronizar y Fusionar Ahora</span>
+                    </button>
+                  </div>
+                </>
               )}
             </div>
 
