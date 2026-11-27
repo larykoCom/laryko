@@ -126,6 +126,22 @@ export interface AppNotification {
   createdAt: Date
 }
 
+export type MediaCategory = 'photo' | 'document' | 'audio' | 'other'
+
+export interface MediaItem {
+  id?: number
+  uuid: string
+  name: string
+  mimeType: string
+  size: number
+  category: MediaCategory
+  storageId: string // 'local' | StorageAccount.id
+  storageLabel: string
+  remoteKey?: string
+  data?: ArrayBuffer
+  createdAt: Date
+}
+
 export class LarykoDB extends Dexie {
   notes!: EntityTable<Note, 'id'>
   counter!: EntityTable<Counter, 'id'>
@@ -138,6 +154,7 @@ export class LarykoDB extends Dexie {
   reminders!: EntityTable<ReminderItem, 'id'>
   notifications!: EntityTable<AppNotification, 'id'>
   customAudio!: EntityTable<CustomAudioRecord, 'id'>
+  mediaItems!: EntityTable<MediaItem, 'id'>
 
   constructor() {
     super('LarykoDB')
@@ -203,6 +220,20 @@ export class LarykoDB extends Dexie {
       reminders: '++id, &uuid, dueAt, completed, updatedAt',
       notifications: '++id, &uuid, reminderUuid, read, category, createdAt',
       customAudio: 'id',
+    })
+    this.version(8).stores({
+      notes: '++id, createdAt',
+      counter: 'id',
+      calculations: '++id, timestamp',
+      sessionGroups: '++id, order, createdAt',
+      sessions: '++id, &uuid, groupId, status, lastActiveAt',
+      pinConfig: 'id',
+      userVault: 'id',
+      userPrefs: 'id',
+      reminders: '++id, &uuid, dueAt, completed, updatedAt',
+      notifications: '++id, &uuid, reminderUuid, read, category, createdAt',
+      customAudio: 'id',
+      mediaItems: '++id, &uuid, category, storageId, createdAt',
     })
   }
 }

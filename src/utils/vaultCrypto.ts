@@ -7,7 +7,49 @@ export function getUserInitials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase()
 }
 
+export function getVaultSetupProgress(
+  vault: UserIntegrationsVault,
+  vaultUnlocked: boolean,
+  hasVaultSetup: boolean
+) {
+  const hasDb = Boolean(vault.neonDatabaseUrl.trim())
+  const hasEmail = Boolean((vault.emailCustomEndpoint ?? '').trim() && vault.resendToEmail.trim())
+  const hasAi = Boolean(
+    vault.openaiApiKey.trim() ||
+      vault.anthropicApiKey.trim() ||
+      vault.geminiApiKey.trim() ||
+      vault.customAiBaseUrl.trim()
+  )
+  const hasStorage = Boolean(
+    (vault.r2AccountId.trim() && vault.r2BucketName.trim()) ||
+      vault.googleDriveClientId.trim() ||
+      vault.dropboxAppKey.trim() ||
+      (vault.storageAccounts && vault.storageAccounts.length > 0)
+  )
+  const coreSteps = [
+    { id: 'profile', done: vaultUnlocked && hasVaultSetup },
+    { id: 'database', done: hasDb },
+    { id: 'email', done: hasEmail },
+    { id: 'storage', done: hasStorage },
+  ]
+  const completed = coreSteps.filter((s) => s.done).length
+  const percent = Math.round((completed / coreSteps.length) * 100)
+  return { hasDb, hasEmail, hasAi, hasStorage, completed, total: coreSteps.length, percent }
+}
+
 export type AiProviderId = 'openai' | 'anthropic' | 'gemini' | 'custom'
+export type StorageProviderId = 'r2' | 'gdrive' | 'dropbox' | 's3' | 'custom'
+
+export interface StorageAccount {
+  id: string
+  provider: StorageProviderId
+  label: string
+  accountId?: string
+  bucket?: string
+  endpoint?: string
+  accessKeyId?: string
+  secretKey?: string
+}
 
 export interface UserIntegrationsVault {
   neonDatabaseUrl: string
@@ -22,6 +64,7 @@ export interface UserIntegrationsVault {
   r2BucketName: string
   googleDriveClientId: string
   dropboxAppKey: string
+  storageAccounts?: StorageAccount[]
   aiDefaultProvider: AiProviderId
   openaiApiKey: string
   openaiModel: string
@@ -49,6 +92,7 @@ export const EMPTY_VAULT: UserIntegrationsVault = {
   r2BucketName: '',
   googleDriveClientId: '',
   dropboxAppKey: '',
+  storageAccounts: [],
   aiDefaultProvider: 'openai',
   openaiApiKey: '',
   openaiModel: '',

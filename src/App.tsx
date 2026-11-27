@@ -62,7 +62,7 @@ const AiAssistant = lazy(() =>
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import { multiSessionBridge } from '@/utils/multiSessionBridge'
 import { sanitizeSessionUrl } from '@/utils/pinCrypto'
-import { getUserInitials } from '@/utils/vaultCrypto'
+import { getUserInitials, getVaultSetupProgress } from '@/utils/vaultCrypto'
 import { toast } from '@/utils/toast'
 import type { LarykoAiAction } from '@/utils/aiAssistantActions'
 import styles from './App.module.css'
@@ -284,90 +284,130 @@ export function App() {
     setShowAccountMenu(null)
   }, [])
 
-  const renderAccountDropdown = (placement: 'up' | 'down') => (
-    <div
-      className={`${styles.accountDropdown} ${
-        placement === 'up' ? styles.accountDropdownUp : styles.accountDropdownDown
-      }`}
-      data-no-drag
-    >
-      <div className={styles.accountDropdownHeader}>
-        <div className={styles.accountDropdownName}>
-          {userPanel.vaultUnlocked ? userPanel.prefs.displayName : 'Bóveda Bloqueada'}
-        </div>
-        {userPanel.vaultUnlocked && (
-          <div className={styles.accountDropdownEmail}>
-            {userPanel.vault.accountEmail ||
-              (userPanel.hasDatabaseConfigured ? 'Modo Cloud' : 'Modo Local')}
-          </div>
-        )}
-      </div>
+  const renderAccountDropdown = (placement: 'up' | 'down') => {
+    const setupStats = getVaultSetupProgress(
+      userPanel.vault,
+      userPanel.vaultUnlocked,
+      userPanel.hasVaultSetup
+    )
+    const syncLabel = !userPanel.hasDatabaseConfigured
+      ? 'Solo Local (sin BD)'
+      : userPanel.prefs.pendingSync
+        ? 'Sync pendiente...'
+        : 'Cloud Sync activo'
+    const syncColor = !userPanel.hasDatabaseConfigured
+      ? '#94a3b8'
+      : userPanel.prefs.pendingSync
+        ? '#f59e0b'
+        : '#10b981'
 
-      {userPanel.vaultUnlocked ? (
-        <>
-          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('sync')}>
-            <User size={14} />
-            <span>Mi Perfil & Sync</span>
-          </button>
-          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('database')}>
-            <Database size={14} />
-            <span>Base de Datos</span>
-          </button>
-          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('ai')}>
-            <Bot size={14} />
-            <span>Inteligencia Artificial</span>
-          </button>
-          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('email')}>
-            <Mail size={14} />
-            <span>Email / Alertas</span>
-          </button>
-          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('storage')}>
-            <HardDrive size={14} />
-            <span>Almacenamiento</span>
-          </button>
-          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('prefs')}>
-            <Sliders size={14} />
-            <span>Preferencias</span>
-          </button>
-          <div className={styles.accountDropdownDivider} />
+    return (
+      <div
+        className={`${styles.accountDropdown} ${
+          placement === 'up' ? styles.accountDropdownUp : styles.accountDropdownDown
+        }`}
+        data-no-drag
+      >
+        <div className={styles.accountDropdownHeader}>
+          <div className={styles.accountDropdownName}>
+            {userPanel.vaultUnlocked ? userPanel.prefs.displayName : 'Bóveda Bloqueada'}
+          </div>
+          {userPanel.vaultUnlocked && (
+            <>
+              <div className={styles.accountDropdownEmail}>
+                {userPanel.vault.accountEmail || 'Perfil local'}
+              </div>
+              <div className={styles.accountDropdownMeta}>
+                <span className={styles.accountSyncBadge}>
+                  <span className={styles.accountSyncDot} style={{ backgroundColor: syncColor }} />
+                  <span>{syncLabel}</span>
+                </span>
+                <div className={styles.accountProgressRow}>
+                  <span>Configuración ({setupStats.completed}/{setupStats.total})</span>
+                  <span>{setupStats.percent}%</span>
+                </div>
+                <div className={styles.accountProgressTrack}>
+                  <div
+                    className={styles.accountProgressFill}
+                    style={{ width: `${setupStats.percent}%` }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {userPanel.vaultUnlocked ? (
+          <>
+            <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('sync')}>
+              <User size={14} />
+              <span style={{ flex: 1 }}>Mi Perfil & Sync</span>
+              <span style={{ fontSize: 11, color: '#10b981' }}>✓</span>
+            </button>
+            <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('database')}>
+              <Database size={14} />
+              <span style={{ flex: 1 }}>Base de Datos</span>
+              {setupStats.hasDb && <span style={{ fontSize: 11, color: '#10b981' }}>✓</span>}
+            </button>
+            <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('email')}>
+              <Mail size={14} />
+              <span style={{ flex: 1 }}>Email / Alertas</span>
+              {setupStats.hasEmail && <span style={{ fontSize: 11, color: '#10b981' }}>✓</span>}
+            </button>
+            <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('storage')}>
+              <HardDrive size={14} />
+              <span style={{ flex: 1 }}>Almacenamiento</span>
+              {setupStats.hasStorage && <span style={{ fontSize: 11, color: '#10b981' }}>✓</span>}
+            </button>
+            <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('ai')}>
+              <Bot size={14} />
+              <span style={{ flex: 1 }}>IA (Opcional)</span>
+              {setupStats.hasAi && <span style={{ fontSize: 11, color: '#10b981' }}>✓</span>}
+            </button>
+            <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('prefs')}>
+              <Sliders size={14} />
+              <span>Preferencias</span>
+            </button>
+            <div className={styles.accountDropdownDivider} />
+            <button
+              type="button"
+              className={styles.accountDropdownItem}
+              onClick={() => {
+                setShowAccountMenu(null)
+                userPanel.lockVault()
+              }}
+            >
+              <Lock size={14} />
+              <span>Bloquear Bóveda</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.accountDropdownItem} ${styles.accountDropdownItemDanger}`}
+              onClick={() => {
+                setShowAccountMenu(null)
+                void userPanel.wipeAllLocalData(false)
+              }}
+            >
+              <LogOut size={14} />
+              <span>Cerrar Sesión</span>
+            </button>
+          </>
+        ) : (
           <button
             type="button"
             className={styles.accountDropdownItem}
             onClick={() => {
               setShowAccountMenu(null)
-              userPanel.lockVault()
+              setActiveTool('account')
             }}
           >
-            <Lock size={14} />
-            <span>Bloquear Bóveda</span>
+            <User size={14} />
+            <span>{userPanel.hasVaultSetup ? 'Desbloquear Perfil' : 'Crear Perfil / Importar'}</span>
           </button>
-          <button
-            type="button"
-            className={`${styles.accountDropdownItem} ${styles.accountDropdownItemDanger}`}
-            onClick={() => {
-              setShowAccountMenu(null)
-              void userPanel.wipeAllLocalData(false)
-            }}
-          >
-            <LogOut size={14} />
-            <span>Cerrar Sesión</span>
-          </button>
-        </>
-      ) : (
-        <button
-          type="button"
-          className={styles.accountDropdownItem}
-          onClick={() => {
-            setShowAccountMenu(null)
-            setActiveTool('account')
-          }}
-        >
-          <User size={14} />
-          <span>{userPanel.hasVaultSetup ? 'Desbloquear Perfil' : 'Crear Perfil / Importar'}</span>
-        </button>
-      )}
-    </div>
-  )
+        )}
+      </div>
+    )
+  }
 
   const handleWindowMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {

@@ -1,4 +1,6 @@
 import type { Platform } from '@/types'
+import type { MediaCategory } from '@/db/laryko.db'
+import type { StorageAccount } from '@/utils/vaultCrypto'
 
 function isTauri(platform: Platform): boolean {
   return (
@@ -475,4 +477,143 @@ export const integrationsBridge = {
       throw err
     }
   },
+}
+
+export function categorizeMimeType(mime: string, name: string): MediaCategory {
+  const m = mime.toLowerCase()
+  const n = name.toLowerCase()
+  if (m.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|heic)$/.test(n)) return 'photo'
+  if (m.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac)$/.test(n)) return 'audio'
+  if (
+    m.includes('pdf') ||
+    m.includes('document') ||
+    m.includes('text/') ||
+    m.includes('spreadsheet') ||
+    /\.(pdf|docx?|xlsx?|pptx?|txt|md|csv|json)$/.test(n)
+  ) {
+    return 'document'
+  }
+  return 'other'
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+export async function uploadFileToStorageAccount(
+  account: StorageAccount,
+  fileName: string,
+  mimeType: string,
+  buffer: ArrayBuffer
+): Promise<string | undefined> {
+  const token = (account.secretKey ?? '').trim()
+  if (!token) return undefined
+
+  if (account.provider === 'dropbox') {
+    const safeName = fileName.replace(/[/\\]/g, '_')
+    const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Dropbox-API-Arg': JSON.stringify({
+          path: `/Laryko/${safeName}`,
+          mode: 'add',
+          autorename: true,
+          mute: false,
+        }),
+        'Content-Type': 'application/octet-stream',
+      },
+      body: buffer,
+    })
+    if (!res.ok) throw new Error(`Dropbox HTTP ${res.status}`)
+    const data = (await res.json()) as { path_display?: string }
+    return data.path_display ?? `/Laryko/${safeName}`
+  }
+
+  if (account.provider === 'gdrive') {
+    const metadata = { name: fileName, mimeType: mimeType || 'application/octet-stream' }
+    const form = new FormData()
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
+    form.append('file', new Blob([buffer], { type: mimeType || 'application/octet-stream' }))
+    const res = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      }
+    )
+    if (!res.ok) throw new Error(`Google Drive HTTP ${res.status}`)
+    const data = (await res.json()) as { id?: string }
+    return data.id
+  }
+
+  if (account.provider === 'custom' && account.endpoint?.trim()) {
+    const parsed = new URL(account.endpoint.trim())
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new Error('Endpoint de almacenamiento inválido.')
+    }
+    const form = new FormData()
+    form.append('file', new Blob([buffer], { type: mimeType || 'application/octet-stream' }), fileName)
+    const res = await fetch(parsed.toString(), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    if (!res.ok) throw new Error(`Storage HTTP ${res.status}`)
+    return fileName
+  }
+
+  return undefined
+}
+
+export async function listCloudFilesForAccount(
+  account: StorageAccount
+): Promise<Array<{ name: string; size: number; mimeType: string; remoteKey: string }>> {
+  const token = (account.secretKey ?? '').trim()
+  if (!token) return []
+
+  if (account.provider === 'dropbox') {
+    const res = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path: '', limit: 50 }),
+    })
+    if (!res.ok) throw new Error(`Dropbox HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      entries?: Array<{ '.tag': string; name: string; size?: number; path_display?: string }>
+    }
+    return (data.entries ?? [])
+      .filter((e) => e['.tag'] === 'file')
+      .map((e) => ({
+        name: e.name,
+        size: e.size ?? 0,
+        mimeType: 'application/octet-stream',
+        remoteKey: e.path_display ?? e.name,
+      }))
+  }
+
+  if (account.provider === 'gdrive') {
+    const res = await fetch(
+      'https://www.googleapis.com/drive/v3/files?pageSize=50&fields=files(id,name,mimeType,size)',
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (!res.ok) throw new Error(`Google Drive HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      files?: Array<{ id: string; name: string; mimeType?: string; size?: string }>
+    }
+    return (data.files ?? []).map((f) => ({
+      name: f.name,
+      size: Number(f.size ?? 0),
+      mimeType: f.mimeType ?? 'application/octet-stream',
+      remoteKey: f.id,
+    }))
+  }
+
+  return []
 }

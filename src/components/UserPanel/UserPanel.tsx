@@ -19,16 +19,28 @@ import {
   Bot,
   Trash2,
   LogOut,
+  Image as ImageIcon,
+  FileText,
+  Plus,
 } from 'lucide-react'
 import { useUserPanel } from '@/hooks/useUserPanel'
 import {
   EMPTY_VAULT,
   getUserInitials,
   type AiProviderId,
+  type StorageAccount,
+  type StorageProviderId,
   type UserIntegrationsVault,
 } from '@/utils/vaultCrypto'
+import {
+  categorizeMimeType,
+  formatFileSize,
+  listCloudFilesForAccount,
+  uploadFileToStorageAccount,
+} from '@/utils/integrationsBridge'
+import { generateSessionUuid } from '@/utils/pinCrypto'
 import { playNotificationSound } from '@/utils/soundEngine'
-import { db, type NotificationSoundPreset } from '@/db/laryko.db'
+import { db, type MediaCategory, type MediaItem, type NotificationSoundPreset } from '@/db/laryko.db'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import { toast } from '@/utils/toast'
@@ -36,6 +48,25 @@ import type { Platform } from '@/types'
 import styles from './UserPanel.module.css'
 
 export type UserPanelTab = 'sync' | 'ai' | 'database' | 'email' | 'storage' | 'prefs'
+
+function MediaThumbPreview({ item }: { item: MediaItem }) {
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (item.category !== 'photo' || !item.data) {
+      setThumbUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(new Blob([item.data], { type: item.mimeType || 'image/png' }))
+    setThumbUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [item.category, item.data, item.mimeType])
+
+  if (thumbUrl) {
+    return <img src={thumbUrl} alt={item.name} />
+  }
+  if (item.category === 'photo') return <ImageIcon size={28} />
+  return <FileText size={28} />
+}
 
 export interface UserPanelProps {
   platform: Platform
@@ -117,7 +148,75 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
   const [importToken, setImportToken] = useState('')
   const [importPass, setImportPass] = useState('')
   const [displayNameDraft, setDisplayNameDraft] = useState(prefs.displayName)
+  const [hideWizard, setHideWizard] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const celebratedRef = useRef(
+    typeof window !== 'undefined' && localStorage.getItem('laryko_setup_celebrated') === '1'
+  )
   const customAudio = useLiveQuery(() => db.customAudio.get(1), [])
+  const mediaItems = useLiveQuery(() => db.mediaItems.orderBy('createdAt').reverse().toArray(), []) ?? []
+
+  const [mediaFilter, setMediaFilter] = useState<'all' | MediaCategory>('all')
+  const [storageFilter, setStorageFilter] = useState<string>('all')
+  const [uploadTargetStorage, setUploadTargetStorage] = useState<string>('local')
+  const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [showAddStorage, setShowAddStorage] = useState(false)
+  const [newStorageProvider, setNewStorageProvider] = useState<StorageProviderId>('r2')
+  const [newStorageLabel, setNewStorageLabel] = useState('')
+  const [newStorageAccountId, setNewStorageAccountId] = useState('')
+  const [newStorageBucket, setNewStorageBucket] = useState('')
+  const [newStorageEndpoint, setNewStorageEndpoint] = useState('')
+  const [newStorageAccessKey, setNewStorageAccessKey] = useState('')
+  const [newStorageSecretKey, setNewStorageSecretKey] = useState('')
+
+  const hasAiConfigured = Boolean(
+    vault.openaiApiKey.trim() ||
+      vault.anthropicApiKey.trim() ||
+      vault.geminiApiKey.trim() ||
+      vault.customAiBaseUrl.trim()
+  )
+  const hasStorageConfigured = Boolean(
+    vault.r2AccountId.trim() && vault.r2BucketName.trim()
+  )
+
+  const setupSteps: Array<{
+    id: string
+    label: string
+    done: boolean
+    optional?: boolean
+    tab: UserPanelTab
+  }> = [
+    { id: 'profile', label: '1. Perfil Creado', done: vaultUnlocked && hasVaultSetup, tab: 'sync' },
+    { id: 'database', label: '2. Base de Datos', done: hasDatabaseConfigured, tab: 'database' },
+    { id: 'email', label: '3. Email / Alertas', done: hasResendConfigured, tab: 'email' },
+    { id: 'storage', label: '4. Almacenamiento', done: hasStorageConfigured, tab: 'storage' },
+    { id: 'ai', label: '5. IA (Opcional)', done: hasAiConfigured, optional: true, tab: 'ai' },
+  ]
+  const requiredSteps = setupSteps.filter((s) => !s.optional)
+  const completedSteps = requiredSteps.filter((s) => s.done).length
+  const setupProgress = Math.round((completedSteps / requiredSteps.length) * 100)
+  const nextPendingStep = requiredSteps.find((s) => !s.done)
+
+  useEffect(() => {
+    if (!vaultUnlocked) return
+    if (completedSteps === requiredSteps.length && !celebratedRef.current) {
+      celebratedRef.current = true
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('laryko_setup_celebrated', '1')
+      }
+      setShowConfetti(true)
+      triggerNativeHaptic('success')
+      toast.success('¡Configuración 100% completada! Tu workspace en Laryko está listo.')
+      const timer = setTimeout(() => setShowConfetti(false), 3200)
+      return () => clearTimeout(timer)
+    }
+    if (completedSteps < requiredSteps.length && celebratedRef.current) {
+      celebratedRef.current = false
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('laryko_setup_celebrated')
+      }
+    }
+  }, [vaultUnlocked, completedSteps, requiredSteps.length])
 
   useEffect(() => {
     setDraft(vault)
@@ -169,7 +268,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
           }
           const field = modelFieldMap[provider]
           setDraft((prev) => {
-            const current = prev[field]
+            const current = String(prev[field] ?? '')
             if (!current || !models.includes(current)) {
               return { ...prev, [field]: pickPreferredModel(provider, models) }
             }
@@ -441,6 +540,24 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
 
   return (
     <div className={styles.panel}>
+      {showConfetti && (
+        <div className={styles.confettiOverlay} aria-hidden="true">
+          {Array.from({ length: 42 }).map((_, idx) => {
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4']
+            return (
+              <span
+                key={idx}
+                className={styles.confettiPiece}
+                style={{
+                  left: `${(idx * 2.4) % 98}%`,
+                  backgroundColor: colors[idx % colors.length],
+                  animationDelay: `${(idx % 7) * 0.08}s`,
+                }}
+              />
+            )
+          })}
+        </div>
+      )}
       {/* ── Header del Panel de Usuario ── */}
       <div className={styles.panelHeader}>
         <div className={styles.profileRow}>
@@ -610,6 +727,66 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
       <div className={styles.card}>
         {activeTab === 'sync' && (
           <div className={styles.sectionBody}>
+            {!hideWizard && (
+              <div className={styles.wizardCard}>
+                <div className={styles.wizardHeader}>
+                  <div>
+                    <strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>
+                      {completedSteps === requiredSteps.length
+                        ? '🎉 ¡Workspace 100% Configurado!'
+                        : 'Configuración Paso a Paso de tu Workspace'}
+                    </strong>
+                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                      {completedSteps === requiredSteps.length
+                        ? 'Todas las integraciones esenciales están listas para usar.'
+                        : `${completedSteps} de ${requiredSteps.length} pasos esenciales completados:`}
+                    </span>
+                  </div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <span className={styles.wizardPercent}>{setupProgress}%</span>
+                    {nextPendingStep && (
+                      <button
+                        type="button"
+                        className={styles.primaryBtn}
+                        style={{ height: 30, padding: '0 12px', fontSize: 12 }}
+                        onClick={() => setActiveTab(nextPendingStep.tab)}
+                      >
+                        Siguiente: {nextPendingStep.label.replace(/^\d+\.\s*/, '')} →
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.closeNotice}
+                      onClick={() => setHideWizard(true)}
+                      title="Ocultar guía"
+                      aria-label="Ocultar guía"
+                      style={{ fontSize: 12 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.progressTrack} role="progressbar" aria-valuenow={setupProgress} aria-valuemin={0} aria-valuemax={100}>
+                  <div className={styles.progressFill} style={{ width: `${setupProgress}%` }} />
+                </div>
+
+                <div className={styles.stepGrid}>
+                  {setupSteps.map((step) => (
+                    <button
+                      key={step.id}
+                      type="button"
+                      className={`${styles.stepPill} ${step.done ? styles.stepPillDone : ''}`}
+                      onClick={() => setActiveTab(step.tab)}
+                    >
+                      <span>{step.label}</span>
+                      <span>{step.done ? '✓' : '→'}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className={styles.subCard}>
               <h3 className={styles.sectionHeading}>
                 <User size={16} />
@@ -1386,110 +1563,518 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
           </div>
         )}
 
-        {activeTab === 'storage' && (
-          <div className={styles.sectionBody}>
-            <h3 className={styles.sectionHeading}>
-              <HardDrive size={16} />
-              <span>Cloudflare R2 (S3 Compatible)</span>
-            </h3>
-            <div className={styles.grid2}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label}>Account ID</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  placeholder="32-char Cloudflare Account ID"
-                  value={draft.r2AccountId}
-                  onChange={(e) => updateField('r2AccountId', e.target.value)}
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label}>Bucket Name</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  placeholder="laryko-vault"
-                  value={draft.r2BucketName}
-                  onChange={(e) => updateField('r2BucketName', e.target.value)}
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label}>Access Key ID</label>
-                <div className={styles.inlineRow}>
-                  <input
-                    type={visibleSecrets.r2Access ? 'text' : 'password'}
-                    className={styles.input}
-                    placeholder="R2 Access Key ID"
-                    value={draft.r2AccessKeyId}
-                    onChange={(e) => updateField('r2AccessKeyId', e.target.value)}
-                  />
-                  {renderEyeBtn('r2Access')}
-                </div>
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label}>Secret Access Key</label>
-                <div className={styles.inlineRow}>
-                  <input
-                    type={visibleSecrets.r2Secret ? 'text' : 'password'}
-                    className={styles.input}
-                    placeholder="R2 Secret Access Key"
-                    value={draft.r2SecretAccessKey}
-                    onChange={(e) => updateField('r2SecretAccessKey', e.target.value)}
-                  />
-                  {renderEyeBtn('r2Secret')}
-                </div>
-              </div>
-            </div>
+        {activeTab === 'storage' && (() => {
+          const storageAccounts = draft.storageAccounts ?? []
+          const filteredMedia = mediaItems.filter((item) => {
+            if (mediaFilter !== 'all' && item.category !== mediaFilter) return false
+            if (storageFilter !== 'all' && item.storageId !== storageFilter) return false
+            return true
+          })
 
-            <div className={styles.actionsRow}>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                disabled={busy || !draft.r2AccountId.trim() || !draft.r2BucketName.trim()}
-                onClick={() => testR2(draft.r2AccountId, draft.r2BucketName)}
-              >
-                Probar Endpoint R2
-              </button>
-            </div>
+          const handleUploadMedia = async (files: FileList | null) => {
+            if (!files || files.length === 0) return
+            setUploadingMedia(true)
+            try {
+              const targetAcc = storageAccounts.find((a) => a.id === uploadTargetStorage)
+              let uploadedCount = 0
+              for (const file of Array.from(files)) {
+                const buffer = await file.arrayBuffer()
+                const category = categorizeMimeType(file.type, file.name)
+                let remoteKey: string | undefined
+                if (targetAcc) {
+                  try {
+                    remoteKey = await uploadFileToStorageAccount(targetAcc, file.name, file.type, buffer)
+                  } catch (err) {
+                    toast.warning(
+                      `${file.name}: guardado en LocalDB (nube: ${err instanceof Error ? err.message : 'error'})`
+                    )
+                  }
+                }
+                await db.mediaItems.add({
+                  uuid: generateSessionUuid(),
+                  name: file.name,
+                  mimeType: file.type || 'application/octet-stream',
+                  size: file.size,
+                  category,
+                  storageId: targetAcc ? targetAcc.id : 'local',
+                  storageLabel: targetAcc ? targetAcc.label : 'Local',
+                  remoteKey,
+                  data: buffer,
+                  createdAt: new Date(),
+                })
+                uploadedCount++
+              }
+              toast.success(`${uploadedCount} archivo(s) agregado(s) a Medios.`)
+            } finally {
+              setUploadingMedia(false)
+            }
+          }
 
-            <div className={styles.subCard}>
-              <h3 className={styles.sectionHeading}>Google Drive & Dropbox (OAuth 2.0 PKCE)</h3>
-              <div className={styles.grid2}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label}>Google Drive Client ID</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    placeholder="xxxx.apps.googleusercontent.com"
-                    value={draft.googleDriveClientId}
-                    onChange={(e) => updateField('googleDriveClientId', e.target.value)}
-                  />
+          const handleSyncCloudMedia = async (account: StorageAccount) => {
+            setUploadingMedia(true)
+            try {
+              const remoteFiles = await listCloudFilesForAccount(account)
+              let added = 0
+              for (const rf of remoteFiles) {
+                const exists = mediaItems.some(
+                  (m) => m.storageId === account.id && m.remoteKey === rf.remoteKey
+                )
+                if (!exists) {
+                  await db.mediaItems.add({
+                    uuid: generateSessionUuid(),
+                    name: rf.name,
+                    mimeType: rf.mimeType,
+                    size: rf.size,
+                    category: categorizeMimeType(rf.mimeType, rf.name),
+                    storageId: account.id,
+                    storageLabel: account.label,
+                    remoteKey: rf.remoteKey,
+                    createdAt: new Date(),
+                  })
+                  added++
+                }
+              }
+              toast.success(`Sincronizados ${added} archivo(s) nuevo(s) desde ${account.label}.`)
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'No se pudo listar archivos de la nube.')
+            } finally {
+              setUploadingMedia(false)
+            }
+          }
+
+          const handleAddStorageAccount = async (e: React.FormEvent) => {
+            e.preventDefault()
+            const cleanLabel = newStorageLabel.trim()
+            if (!cleanLabel) return
+            const newAcc: StorageAccount = {
+              id: generateSessionUuid(),
+              provider: newStorageProvider,
+              label: cleanLabel,
+              accountId: newStorageAccountId.trim() || undefined,
+              bucket: newStorageBucket.trim() || undefined,
+              endpoint: newStorageEndpoint.trim() || undefined,
+              accessKeyId: newStorageAccessKey.trim() || undefined,
+              secretKey: newStorageSecretKey.trim() || undefined,
+            }
+            const nextVault: UserIntegrationsVault = {
+              ...draft,
+              storageAccounts: [...storageAccounts, newAcc],
+              ...(newStorageProvider === 'r2' && !draft.r2AccountId
+                ? {
+                    r2AccountId: newStorageAccountId.trim(),
+                    r2BucketName: newStorageBucket.trim(),
+                    r2AccessKeyId: newStorageAccessKey.trim(),
+                    r2SecretAccessKey: newStorageSecretKey.trim(),
+                  }
+                : {}),
+            }
+            setDraft(nextVault)
+            await saveVault(nextVault)
+            setNewStorageLabel('')
+            setNewStorageAccountId('')
+            setNewStorageBucket('')
+            setNewStorageEndpoint('')
+            setNewStorageAccessKey('')
+            setNewStorageSecretKey('')
+            setShowAddStorage(false)
+          }
+
+          return (
+            <div className={styles.sectionBody}>
+              {/* ── Sección 1: Medios (Archivos, Fotos, Documentos) ── */}
+              <div className={styles.subCard}>
+                <div className={styles.wizardHeader}>
+                  <h3 className={styles.sectionHeading} style={{ margin: 0 }}>
+                    <ImageIcon size={16} />
+                    <span>Medios ({filteredMedia.length})</span>
+                  </h3>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <select
+                      className={styles.select}
+                      style={{ height: 34, fontSize: 12 }}
+                      value={uploadTargetStorage}
+                      onChange={(e) => setUploadTargetStorage(e.target.value)}
+                      aria-label="Destino de subida"
+                    >
+                      <option value="local">Guardar en: Local (Offline-First)</option>
+                      {storageAccounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          Guardar en: {acc.label} ({acc.provider.toUpperCase()})
+                        </option>
+                      ))}
+                    </select>
+                    <label
+                      className={styles.primaryBtn}
+                      style={{ cursor: uploadingMedia ? 'wait' : 'pointer', height: 34, padding: '0 12px', fontSize: 12 }}
+                    >
+                      <Upload size={14} />
+                      <span>{uploadingMedia ? 'Subiendo...' : 'Subir Archivo / Foto'}</span>
+                      <input
+                        type="file"
+                        multiple
+                        style={{ display: 'none' }}
+                        disabled={uploadingMedia}
+                        onChange={(e) => {
+                          void handleUploadMedia(e.target.files)
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label}>Dropbox App Key</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    placeholder="App Key de Dropbox"
-                    value={draft.dropboxAppKey}
-                    onChange={(e) => updateField('dropboxAppKey', e.target.value)}
-                  />
+
+                <div className={styles.tabsRow}>
+                  {(
+                    [
+                      ['all', 'Todos'],
+                      ['photo', 'Fotos'],
+                      ['document', 'Documentos'],
+                      ['audio', 'Audio'],
+                      ['other', 'Otros'],
+                    ] as const
+                  ).map(([cat, label]) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={`${styles.tabBtn} ${mediaFilter === cat ? styles.tabBtnActive : ''}`}
+                      onClick={() => setMediaFilter(cat)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+
+                  <select
+                    className={styles.select}
+                    style={{ height: 32, fontSize: 12, marginLeft: 'auto' }}
+                    value={storageFilter}
+                    onChange={(e) => setStorageFilter(e.target.value)}
+                    aria-label="Filtrar por almacenamiento"
+                  >
+                    <option value="all">Todos los almacenamientos</option>
+                    <option value="local">Solo Local</option>
+                    {storageAccounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {filteredMedia.length === 0 ? (
+                  <p className={styles.hint} style={{ margin: 0 }}>
+                    Aún no hay archivos en esta vista. Sube fotos, PDFs o documentos locales o sincroniza desde una cuenta conectada.
+                  </p>
+                ) : (
+                  <div className={styles.mediaGrid}>
+                    {filteredMedia.map((item) => (
+                      <div key={item.uuid} className={styles.mediaCard}>
+                        <div className={styles.mediaThumb}>
+                          <MediaThumbPreview item={item} />
+                        </div>
+                        <div className={styles.mediaBody}>
+                          <div className={styles.mediaName} title={item.name}>
+                            {item.name}
+                          </div>
+                          <div className={styles.mediaMeta}>
+                            <span>{formatFileSize(item.size)}</span>
+                            <span className={styles.mediaBadge}>{item.storageLabel}</span>
+                          </div>
+                          <div className={styles.mediaActions}>
+                            {item.data && (
+                              <button
+                                type="button"
+                                className={styles.secondaryBtn}
+                                style={{ height: 28, padding: '0 8px' }}
+                                title="Descargar"
+                                onClick={() => {
+                                  if (!item.data) return
+                                  const url = URL.createObjectURL(
+                                    new Blob([item.data], { type: item.mimeType })
+                                  )
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = item.name
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  a.remove()
+                                  URL.revokeObjectURL(url)
+                                }}
+                              >
+                                <Download size={13} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className={styles.secondaryBtn}
+                              style={{ height: 28, padding: '0 8px', color: '#ef4444' }}
+                              title="Eliminar"
+                              onClick={async () => {
+                                if (item.id !== undefined) {
+                                  await db.mediaItems.delete(item.id)
+                                  toast.info(`${item.name} eliminado de Medios.`)
+                                }
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Sección 2: Cuentas de Almacenamiento Conectadas ── */}
+              <div className={styles.subCard}>
+                <div className={styles.wizardHeader}>
+                  <h3 className={styles.sectionHeading} style={{ margin: 0 }}>
+                    <HardDrive size={16} />
+                    <span>Cuentas de Almacenamiento ({storageAccounts.length})</span>
+                  </h3>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    onClick={() => setShowAddStorage((v) => !v)}
+                  >
+                    <Plus size={14} />
+                    <span>{showAddStorage ? 'Cerrar' : 'Agregar Cuenta'}</span>
+                  </button>
+                </div>
+
+                {showAddStorage && (
+                  <form className={styles.unlockForm} onSubmit={handleAddStorageAccount}>
+                    <div className={styles.grid2}>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.label}>Proveedor</label>
+                        <select
+                          className={styles.select}
+                          value={newStorageProvider}
+                          onChange={(e) => setNewStorageProvider(e.target.value as StorageProviderId)}
+                        >
+                          <option value="r2">Cloudflare R2 (S3)</option>
+                          <option value="gdrive">Google Drive</option>
+                          <option value="dropbox">Dropbox</option>
+                          <option value="s3">S3 Compatible</option>
+                          <option value="custom">Otro / Endpoint REST Custom</option>
+                        </select>
+                      </div>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.label}>Nombre de la Cuenta</label>
+                        <input
+                          type="text"
+                          className={styles.input}
+                          placeholder="Ej. Dropbox Personal, R2 Trabajo..."
+                          value={newStorageLabel}
+                          onChange={(e) => setNewStorageLabel(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {(newStorageProvider === 'r2' || newStorageProvider === 's3') && (
+                      <div className={styles.grid2}>
+                        <input
+                          type="text"
+                          className={styles.input}
+                          placeholder={newStorageProvider === 'r2' ? 'Account ID' : 'Endpoint S3'}
+                          value={newStorageProvider === 'r2' ? newStorageAccountId : newStorageEndpoint}
+                          onChange={(e) =>
+                            newStorageProvider === 'r2'
+                              ? setNewStorageAccountId(e.target.value)
+                              : setNewStorageEndpoint(e.target.value)
+                          }
+                        />
+                        <input
+                          type="text"
+                          className={styles.input}
+                          placeholder="Bucket Name"
+                          value={newStorageBucket}
+                          onChange={(e) => setNewStorageBucket(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {newStorageProvider === 'custom' && (
+                      <input
+                        type="url"
+                        className={styles.input}
+                        placeholder="URL Endpoint de subida (https://...)"
+                        value={newStorageEndpoint}
+                        onChange={(e) => setNewStorageEndpoint(e.target.value)}
+                      />
+                    )}
+
+                    <div className={styles.grid2}>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        placeholder={
+                          newStorageProvider === 'gdrive'
+                            ? 'Client ID (opcional)'
+                            : newStorageProvider === 'dropbox'
+                              ? 'App Key (opcional)'
+                              : 'Access Key ID (opcional)'
+                        }
+                        value={newStorageAccessKey}
+                        onChange={(e) => setNewStorageAccessKey(e.target.value)}
+                      />
+                      <input
+                        type="password"
+                        className={styles.input}
+                        placeholder={
+                          newStorageProvider === 'gdrive' || newStorageProvider === 'dropbox'
+                            ? 'OAuth Access Token (para subir/listar)'
+                            : 'Secret Access Key / Bearer Token'
+                        }
+                        value={newStorageSecretKey}
+                        onChange={(e) => setNewStorageSecretKey(e.target.value)}
+                      />
+                    </div>
+
+                    <button type="submit" className={styles.primaryBtn} disabled={busy}>
+                      Guardar Cuenta en Bóveda
+                    </button>
+                  </form>
+                )}
+
+                {storageAccounts.length === 0 ? (
+                  <p className={styles.hint} style={{ margin: 0 }}>
+                    Agrega cuentas de <strong>Cloudflare R2</strong>, <strong>Google Drive</strong>, <strong>Dropbox</strong>, <strong>S3</strong> o un endpoint personalizado para respaldar tus medios en la nube.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {storageAccounts.map((acc) => (
+                      <div key={acc.id} className={styles.storageAccountRow}>
+                        <div>
+                          <strong style={{ fontSize: 'var(--font-size-sm)' }}>{acc.label}</strong>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                            {acc.provider.toUpperCase()}
+                            {acc.bucket ? ` · Bucket: ${acc.bucket}` : ''}
+                            {acc.endpoint ? ` · ${acc.endpoint}` : ''}
+                          </div>
+                        </div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {(acc.provider === 'dropbox' || acc.provider === 'gdrive') && acc.secretKey && (
+                            <button
+                              type="button"
+                              className={styles.secondaryBtn}
+                              disabled={uploadingMedia}
+                              onClick={() => void handleSyncCloudMedia(acc)}
+                            >
+                              <RefreshCw size={13} />
+                              <span>Listar</span>
+                            </button>
+                          )}
+                          {acc.provider === 'r2' && acc.accountId && acc.bucket && (
+                            <button
+                              type="button"
+                              className={styles.secondaryBtn}
+                              disabled={busy}
+                              onClick={() => testR2(acc.accountId ?? '', acc.bucket ?? '')}
+                            >
+                              Probar
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={styles.secondaryBtn}
+                            style={{ color: '#ef4444' }}
+                            onClick={async () => {
+                              const nextVault = {
+                                ...draft,
+                                storageAccounts: storageAccounts.filter((a) => a.id !== acc.id),
+                              }
+                              setDraft(nextVault)
+                              await saveVault(nextVault)
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Configuración Rápida Cloudflare R2 / PKCE Clásica ── */}
+              <div className={styles.subCard}>
+                <h3 className={styles.sectionHeading}>
+                  <HardDrive size={16} />
+                  <span>Cloudflare R2 Principal (Compatibilidad)</span>
+                </h3>
+                <div className={styles.grid2}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label}>Account ID</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="32-char Cloudflare Account ID"
+                      value={draft.r2AccountId}
+                      onChange={(e) => updateField('r2AccountId', e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label}>Bucket Name</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="laryko-vault"
+                      value={draft.r2BucketName}
+                      onChange={(e) => updateField('r2BucketName', e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label}>Access Key ID</label>
+                    <div className={styles.inlineRow}>
+                      <input
+                        type={visibleSecrets.r2Access ? 'text' : 'password'}
+                        className={styles.input}
+                        placeholder="R2 Access Key ID"
+                        value={draft.r2AccessKeyId}
+                        onChange={(e) => updateField('r2AccessKeyId', e.target.value)}
+                      />
+                      {renderEyeBtn('r2Access')}
+                    </div>
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label}>Secret Access Key</label>
+                    <div className={styles.inlineRow}>
+                      <input
+                        type={visibleSecrets.r2Secret ? 'text' : 'password'}
+                        className={styles.input}
+                        placeholder="R2 Secret Access Key"
+                        value={draft.r2SecretAccessKey}
+                        onChange={(e) => updateField('r2SecretAccessKey', e.target.value)}
+                      />
+                      {renderEyeBtn('r2Secret')}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.actionsRow}>
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    disabled={busy}
+                    onClick={() => saveVault(draft)}
+                  >
+                    Guardar Almacenamiento
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={busy || !draft.r2AccountId.trim() || !draft.r2BucketName.trim()}
+                    onClick={() => testR2(draft.r2AccountId, draft.r2BucketName)}
+                  >
+                    Probar Endpoint R2
+                  </button>
                 </div>
               </div>
             </div>
-
-            <div className={styles.actionsRow}>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                disabled={busy}
-                onClick={() => saveVault(draft)}
-              >
-                Guardar Almacenamiento
-              </button>
-            </div>
-          </div>
-        )}
+          )
+        })()}
 
         {activeTab === 'prefs' && (
           <div className={styles.sectionBody}>
