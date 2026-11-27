@@ -21,7 +21,12 @@ import {
   LogOut,
 } from 'lucide-react'
 import { useUserPanel } from '@/hooks/useUserPanel'
-import { EMPTY_VAULT, type AiProviderId, type UserIntegrationsVault } from '@/utils/vaultCrypto'
+import {
+  EMPTY_VAULT,
+  getUserInitials,
+  type AiProviderId,
+  type UserIntegrationsVault,
+} from '@/utils/vaultCrypto'
 import { playNotificationSound } from '@/utils/soundEngine'
 import { db, type NotificationSoundPreset } from '@/db/laryko.db'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -84,6 +89,8 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
   const [unlockMode, setUnlockMode] = useState<'vault' | 'code'>('vault')
   const [showDbLoginInSync, setShowDbLoginInSync] = useState(false)
   const [masterInput, setMasterInput] = useState('')
+  const [setupName, setSetupName] = useState('')
+  const [setupEmail, setSetupEmail] = useState('')
   const [loginNeonUrl, setLoginNeonUrl] = useState('')
   const [loginIdentifier, setLoginIdentifier] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -225,7 +232,9 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             <Lock size={28} strokeWidth={2.2} />
           </div>
           <h2 className={styles.title}>
-            {hasVaultSetup ? 'Desbloquear Bóveda de Usuario' : 'Crear Bóveda Cifrada (E2EE)'}
+            {hasVaultSetup
+              ? `Desbloquear: ${prefs.displayName}`
+              : 'Crear Perfil y Bóveda (E2EE)'}
           </h2>
           <p className={styles.subtitle}>
             {hasVaultSetup
@@ -266,13 +275,40 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               className={styles.unlockForm}
               onSubmit={async (e) => {
                 e.preventDefault()
-                const ok = await unlockOrInitVault(masterInput)
+                const ok = await unlockOrInitVault(
+                  masterInput,
+                  hasVaultSetup
+                    ? undefined
+                    : { displayName: setupName, email: setupEmail }
+                )
                 if (ok) {
                   triggerNativeHaptic('success')
                   setMasterInput('')
+                  setSetupName('')
+                  setSetupEmail('')
                 }
               }}
             >
+              {!hasVaultSetup && (
+                <>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="Tu nombre o alias (ej. Chris)"
+                    value={setupName}
+                    onChange={(e) => setSetupName(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="email"
+                    className={styles.input}
+                    placeholder="Correo electrónico (ej. tu@correo.com)"
+                    value={setupEmail}
+                    onChange={(e) => setSetupEmail(e.target.value)}
+                    required
+                  />
+                </>
+              )}
               <input
                 type="password"
                 className={styles.input}
@@ -283,7 +319,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               />
               <button type="submit" className={styles.primaryBtn} disabled={busy}>
                 <Unlock size={16} />
-                <span>{hasVaultSetup ? 'Desbloquear Bóveda' : 'Crear Bóveda y Configurar'}</span>
+                <span>{hasVaultSetup ? 'Desbloquear Bóveda' : 'Crear Perfil y Bóveda'}</span>
               </button>
             </form>
           )}
@@ -408,12 +444,15 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
       {/* ── Header del Panel de Usuario ── */}
       <div className={styles.panelHeader}>
         <div className={styles.profileRow}>
-          <div className={styles.avatar}>
-            <User size={22} strokeWidth={2.2} />
+          <div className={styles.avatar} title={prefs.displayName}>
+            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '0.04em' }}>
+              {getUserInitials(prefs.displayName)}
+            </span>
           </div>
           <div>
             <h2 className={styles.title}>{prefs.displayName}</h2>
             <p className={styles.subtitle}>
+              {vault.accountEmail ? `${vault.accountEmail} · ` : ''}
               {hasDatabaseConfigured
                 ? 'Modo Cloud (Neon Postgres)'
                 : 'Modo Local (IndexedDB — sin sync)'}{' '}
@@ -436,41 +475,84 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
             <span>Bloquear</span>
           </button>
 
-          {!confirmLogout ? (
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            onClick={() => setConfirmLogout((prev) => !prev)}
+            title="Cerrar sesión local y cambiar de usuario"
+            style={
+              confirmLogout
+                ? { borderColor: '#ef4444', color: '#ef4444' }
+                : undefined
+            }
+          >
+            <LogOut size={15} />
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
+      </div>
+
+      {confirmLogout && (
+        <div
+          className={styles.subCard}
+          style={{
+            borderColor: 'rgba(239, 68, 68, 0.35)',
+            background: 'rgba(239, 68, 68, 0.06)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <LogOut size={18} style={{ color: '#ef4444', flexShrink: 0 }} />
+            <div>
+              <strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>
+                ¿Cerrar sesión local de {prefs.displayName}?
+              </strong>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                Se limpiará este perfil del dispositivo para cambiar de usuario. Tus datos en la nube no se borrarán.
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
               className={styles.secondaryBtn}
-              onClick={() => setConfirmLogout(true)}
-              title="Cerrar sesión local y cambiar de usuario"
+              disabled={busy}
+              onClick={() => setConfirmLogout(false)}
             >
-              <LogOut size={15} />
-              <span>Cerrar Sesión</span>
+              <span>Cancelar</span>
             </button>
-          ) : (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <button
-                type="button"
-                className={styles.dangerBtn}
-                disabled={busy}
-                onClick={async () => {
-                  setConfirmLogout(false)
-                  await wipeAllLocalData(false)
-                }}
-              >
-                <span>Confirmar salida</span>
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                disabled={busy}
-                onClick={() => setConfirmLogout(false)}
-              >
-                <span>Cancelar</span>
-              </button>
-            </div>
-          )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                setConfirmLogout(false)
+                await wipeAllLocalData(false)
+              }}
+              style={{
+                height: 36,
+                padding: '0 14px',
+                borderRadius: 'var(--radius-full)',
+                border: 'none',
+                background: '#ef4444',
+                color: '#ffffff',
+                fontSize: 'var(--font-size-xs)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <LogOut size={14} />
+              <span>Sí, cerrar sesión</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Navegación por Secciones (Mi Perfil primero) ── */}
       <div className={styles.tabsRow}>
@@ -504,7 +586,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
           onClick={() => setActiveTab('email')}
         >
           <Mail size={15} />
-          <span>Resend Email</span>
+          <span>Email / Alertas</span>
         </button>
         <button
           type="button"
@@ -1203,19 +1285,42 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
           <div className={styles.sectionBody}>
             <h3 className={styles.sectionHeading}>
               <Mail size={16} />
-              <span>Resend (Correo de Recordatorios & Alertas)</span>
+              <span>Email API (Correo de Recordatorios & Alertas)</span>
             </h3>
             <p className={styles.hint}>
-              Si no tienes dominio propio, deja <code>Laryko &lt;onboarding@resend.dev&gt;</code> como remitente y coloca tu correo personal (Gmail/Outlook registrado en Resend) como destinatario. <strong>Recomendación:</strong> Usa ese mismo correo en toda tu cuenta de Laryko para no tener problemas de verificación o envío.
+              Conecta cualquier servicio de correo REST / Webhook (POST JSON con <code>from</code>, <code>to</code>, <code>subject</code>, <code>html</code>).{' '}
+              <strong>Recomendación:</strong> Puedes usar proveedores compatibles como Resend, Brevo, Mailtrap, MailerSend, Postmark, SendGrid o tu propio endpoint/worker.
             </p>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Resend API Key</label>
+              <label className={styles.label}>Proveedor de Email API (nombre a tu elección)</label>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder="Ej. Resend, Brevo, Mi Webhook..."
+                value={draft.emailProvider ?? ''}
+                onChange={(e) => updateField('emailProvider', e.target.value)}
+              />
+            </div>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>URL del Endpoint Email API (POST JSON)</label>
+              <input
+                type="url"
+                className={styles.input}
+                placeholder="https://api.tu-proveedor.com/emails"
+                value={draft.emailCustomEndpoint ?? ''}
+                onChange={(e) => updateField('emailCustomEndpoint', e.target.value)}
+              />
+            </div>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>API Key / Bearer Token (opcional)</label>
               <div className={styles.inlineRow}>
                 <input
                   type={visibleSecrets.resend ? 'text' : 'password'}
                   className={styles.input}
-                  placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+                  placeholder="Token o API Key del proveedor"
                   value={draft.resendApiKey}
                   onChange={(e) => updateField('resendApiKey', e.target.value)}
                 />
@@ -1228,7 +1333,7 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
               <input
                 type="email"
                 className={styles.input}
-                placeholder="Laryko <onboarding@resend.dev>"
+                placeholder="Laryko <alertas@tudominio.com>"
                 value={draft.resendFromEmail}
                 onChange={(e) => updateField('resendFromEmail', e.target.value)}
               />
@@ -1262,14 +1367,16 @@ export function UserPanel({ platform, userPanelState, requestedTab }: UserPanelP
                 className={styles.secondaryBtn}
                 disabled={
                   busy ||
-                  !draft.resendApiKey.trim() ||
+                  !(draft.emailCustomEndpoint ?? '').trim() ||
                   !(draft.resendToEmail || testToEmail).trim()
                 }
                 onClick={() =>
                   testResend(
                     draft.resendApiKey,
-                    draft.resendFromEmail || 'Laryko <onboarding@resend.dev>',
-                    draft.resendToEmail || testToEmail
+                    draft.resendFromEmail || draft.resendToEmail || testToEmail,
+                    draft.resendToEmail || testToEmail,
+                    draft.emailProvider ?? '',
+                    draft.emailCustomEndpoint ?? ''
                   )
                 }
               >

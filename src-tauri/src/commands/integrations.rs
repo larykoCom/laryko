@@ -2,80 +2,124 @@ use crate::state::AppState;
 use std::time::Duration;
 use tauri::State;
 
-async fn send_resend_internal(
+async fn send_email_internal(
     http: &reqwest::Client,
+    provider_name: &str,
+    endpoint_url: &str,
     api_key: &str,
     from_email: &str,
     to_email: &str,
     subject: &str,
     html: &str,
 ) -> Result<String, String> {
-    let key = api_key.trim();
-    if key.is_empty() {
-        return Err("La API Key de Resend es obligatoria.".to_string());
+    let raw_url = endpoint_url.trim();
+    let parsed = tauri::Url::parse(raw_url)
+        .map_err(|_| "URL del Endpoint Email API inválida.".to_string())?;
+    if !matches!(parsed.scheme(), "https" | "http") {
+        return Err("El endpoint debe usar https:// o http://.".to_string());
     }
-    let from = if from_email.trim().is_empty() {
-        "Laryko <onboarding@resend.dev>"
-    } else {
-        from_email.trim()
-    };
+
     let to = to_email.trim();
     if !to.contains('@') {
         return Err("Ingresa un correo destinatario válido.".to_string());
     }
 
-    let payload = serde_json::json!({
-        "from": from,
-        "to": [to],
-        "subject": subject,
-        "html": html
-    });
+    let from = if from_email.trim().is_empty() {
+        to
+    } else {
+        from_email.trim()
+    };
 
-    let res = http
-        .post("https://api.resend.com/emails")
+    let key = api_key.trim();
+    let mut req = http
+        .post(parsed)
         .timeout(Duration::from_secs(15))
-        .bearer_auth(key)
         .header("Content-Type", "application/json")
-        .body(payload.to_string())
+        .header("Accept", "application/json")
+        .body(
+            serde_json::json!({
+                "from": from,
+                "to": [to],
+                "subject": subject,
+                "html": html
+            })
+            .to_string(),
+        );
+
+    if !key.is_empty() {
+        req = req.bearer_auth(key);
+    }
+
+    let label = if provider_name.trim().is_empty() {
+        "Email API"
+    } else {
+        provider_name.trim()
+    };
+
+    let res = req
         .send()
         .await
-        .map_err(|e| format!("Error conectando con Resend: {}", e))?;
+        .map_err(|e| format!("Error conectando con {}: {}", label, e))?;
 
     if !res.status().is_success() {
         let status = res.status();
         let text = res.text().await.unwrap_or_default();
-        return Err(format!("Resend respondió HTTP {}: {}", status, text));
+        return Err(format!("{} respondió HTTP {}: {}", label, status, text));
     }
 
-    Ok("Correo enviado correctamente con Resend.".to_string())
+    Ok(format!("Correo enviado correctamente vía {}.", label))
 }
 
 #[tauri::command]
 pub async fn send_resend_email(
     state: State<'_, AppState>,
+    provider: Option<String>,
+    custom_endpoint: Option<String>,
     api_key: String,
     from_email: String,
     to_email: String,
     subject: String,
     html: String,
 ) -> Result<String, String> {
-    send_resend_internal(&state.http, &api_key, &from_email, &to_email, &subject, &html).await
+    send_email_internal(
+        &state.http,
+        provider.as_deref().unwrap_or(""),
+        custom_endpoint.as_deref().unwrap_or(""),
+        &api_key,
+        &from_email,
+        &to_email,
+        &subject,
+        &html,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn test_resend_connection(
     state: State<'_, AppState>,
+    provider: Option<String>,
+    custom_endpoint: Option<String>,
     api_key: String,
     from_email: String,
     to_email: String,
 ) -> Result<String, String> {
-    send_resend_internal(
+    let label = provider
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Email API");
+    send_email_internal(
         &state.http,
+        label,
+        custom_endpoint.as_deref().unwrap_or(""),
         &api_key,
         &from_email,
         &to_email,
-        "Laryko — Prueba de conexión Resend",
-        "<p>Tu integración de <strong>Resend</strong> en Laryko está funcionando correctamente.</p>",
+        &format!("Laryko — Prueba de conexión ({})", label),
+        &format!(
+            "<p>Tu integración de correo con <strong>{}</strong> en Laryko está funcionando correctamente.</p>",
+            label
+        ),
     )
     .await
 }

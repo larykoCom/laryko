@@ -18,6 +18,12 @@ import {
   Lock,
   User,
   Bell,
+  Database,
+  Bot,
+  Mail,
+  HardDrive,
+  Sliders,
+  LogOut,
 } from 'lucide-react'
 import {
   usePlatform,
@@ -56,6 +62,7 @@ const AiAssistant = lazy(() =>
 import { NativeIOSBridge, triggerNativeHaptic } from '@/utils/nativeIOSBridge'
 import { multiSessionBridge } from '@/utils/multiSessionBridge'
 import { sanitizeSessionUrl } from '@/utils/pinCrypto'
+import { getUserInitials } from '@/utils/vaultCrypto'
 import { toast } from '@/utils/toast'
 import type { LarykoAiAction } from '@/utils/aiAssistantActions'
 import styles from './App.module.css'
@@ -85,8 +92,9 @@ export function App() {
   const [activeTool, setActiveTool] = useState<ActiveTool>('home')
   const [showModal, setShowModal] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showAccountMenu, setShowAccountMenu] = useState<'sidebar' | 'topbar' | null>(null)
   const [showAiAssistant, setShowAiAssistant] = useState(false)
-  const [accountTab, setAccountTab] = useState<'database' | 'ai' | null>(null)
+  const [accountTab, setAccountTab] = useState<'sync' | 'database' | 'ai' | 'email' | 'storage' | 'prefs' | null>(null)
   const multiSession = useMultiSession(appInfo.platform)
   const userPanel = useUserPanel(appInfo.platform)
   const remindersState = useReminders(
@@ -249,6 +257,117 @@ export function App() {
   const activeSessionsCount = multiSession.sessions.filter((s) => s.status === 'active').length
   const showSidebarSubmenu =
     activeTool === 'sessions' && multiSession.isUnlocked && multiSession.sessions.length > 0
+
+  useEffect(() => {
+    if (!showAccountMenu) return
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target?.closest('[data-account-menu]')) {
+        setShowAccountMenu(null)
+      }
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowAccountMenu(null)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [showAccountMenu])
+
+  const openAccountSection = useCallback((tab: 'sync' | 'database' | 'ai' | 'email' | 'storage' | 'prefs') => {
+    triggerNativeHaptic('selection')
+    setAccountTab(tab)
+    setActiveTool('account')
+    setShowAccountMenu(null)
+  }, [])
+
+  const renderAccountDropdown = (placement: 'up' | 'down') => (
+    <div
+      className={`${styles.accountDropdown} ${
+        placement === 'up' ? styles.accountDropdownUp : styles.accountDropdownDown
+      }`}
+      data-no-drag
+    >
+      <div className={styles.accountDropdownHeader}>
+        <div className={styles.accountDropdownName}>
+          {userPanel.vaultUnlocked ? userPanel.prefs.displayName : 'Bóveda Bloqueada'}
+        </div>
+        {userPanel.vaultUnlocked && (
+          <div className={styles.accountDropdownEmail}>
+            {userPanel.vault.accountEmail ||
+              (userPanel.hasDatabaseConfigured ? 'Modo Cloud' : 'Modo Local')}
+          </div>
+        )}
+      </div>
+
+      {userPanel.vaultUnlocked ? (
+        <>
+          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('sync')}>
+            <User size={14} />
+            <span>Mi Perfil & Sync</span>
+          </button>
+          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('database')}>
+            <Database size={14} />
+            <span>Base de Datos</span>
+          </button>
+          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('ai')}>
+            <Bot size={14} />
+            <span>Inteligencia Artificial</span>
+          </button>
+          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('email')}>
+            <Mail size={14} />
+            <span>Email / Alertas</span>
+          </button>
+          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('storage')}>
+            <HardDrive size={14} />
+            <span>Almacenamiento</span>
+          </button>
+          <button type="button" className={styles.accountDropdownItem} onClick={() => openAccountSection('prefs')}>
+            <Sliders size={14} />
+            <span>Preferencias</span>
+          </button>
+          <div className={styles.accountDropdownDivider} />
+          <button
+            type="button"
+            className={styles.accountDropdownItem}
+            onClick={() => {
+              setShowAccountMenu(null)
+              userPanel.lockVault()
+            }}
+          >
+            <Lock size={14} />
+            <span>Bloquear Bóveda</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.accountDropdownItem} ${styles.accountDropdownItemDanger}`}
+            onClick={() => {
+              setShowAccountMenu(null)
+              void userPanel.wipeAllLocalData(false)
+            }}
+          >
+            <LogOut size={14} />
+            <span>Cerrar Sesión</span>
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className={styles.accountDropdownItem}
+          onClick={() => {
+            setShowAccountMenu(null)
+            setActiveTool('account')
+          }}
+        >
+          <User size={14} />
+          <span>{userPanel.hasVaultSetup ? 'Desbloquear Perfil' : 'Crear Perfil / Importar'}</span>
+        </button>
+      )}
+    </div>
+  )
 
   const handleWindowMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -626,20 +745,39 @@ export function App() {
           </div>
 
           <div className={styles.globalActionsGroup}>
-            <button
-              type="button"
-              className={`${styles.accountCircleBtn} ${
-                activeTool === 'account' ? styles.accountCircleBtnActive : ''
-              }`}
-              onClick={() => {
-                triggerNativeHaptic('selection')
-                setActiveTool('account')
-              }}
-              title="Cuenta y Sincronización"
-              aria-label="Cuenta y Sincronización"
-            >
-              <User size={16} strokeWidth={2.2} />
-            </button>
+            <div className={styles.accountMenuWrap} data-account-menu>
+              <button
+                type="button"
+                className={`${styles.accountCircleBtn} ${
+                  activeTool === 'account' || showAccountMenu === 'sidebar'
+                    ? styles.accountCircleBtnActive
+                    : ''
+                }`}
+                onClick={() => {
+                  triggerNativeHaptic('selection')
+                  setShowAccountMenu((prev) => (prev === 'sidebar' ? null : 'sidebar'))
+                }}
+                title={
+                  userPanel.vaultUnlocked
+                    ? userPanel.prefs.displayName
+                    : 'Cuenta y Sincronización'
+                }
+                aria-label={
+                  userPanel.vaultUnlocked
+                    ? userPanel.prefs.displayName
+                    : 'Cuenta y Sincronización'
+                }
+              >
+                {userPanel.vaultUnlocked ? (
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.03em' }}>
+                    {getUserInitials(userPanel.prefs.displayName)}
+                  </span>
+                ) : (
+                  <User size={16} strokeWidth={2.2} />
+                )}
+              </button>
+              {showAccountMenu === 'sidebar' && renderAccountDropdown('up')}
+            </div>
 
             <button
               type="button"
@@ -681,20 +819,39 @@ export function App() {
           </div>
 
           <div className={styles.globalActionsGroup}>
-            <button
-              type="button"
-              className={`${styles.accountCircleBtn} ${
-                activeTool === 'account' ? styles.accountCircleBtnActive : ''
-              }`}
-              onClick={() => {
-                triggerNativeHaptic('selection')
-                setActiveTool('account')
-              }}
-              title="Cuenta y Sincronización"
-              aria-label="Cuenta y Sincronización"
-            >
-              <User size={16} strokeWidth={2.2} />
-            </button>
+            <div className={styles.accountMenuWrap} data-account-menu>
+              <button
+                type="button"
+                className={`${styles.accountCircleBtn} ${
+                  activeTool === 'account' || showAccountMenu === 'topbar'
+                    ? styles.accountCircleBtnActive
+                    : ''
+                }`}
+                onClick={() => {
+                  triggerNativeHaptic('selection')
+                  setShowAccountMenu((prev) => (prev === 'topbar' ? null : 'topbar'))
+                }}
+                title={
+                  userPanel.vaultUnlocked
+                    ? userPanel.prefs.displayName
+                    : 'Cuenta y Sincronización'
+                }
+                aria-label={
+                  userPanel.vaultUnlocked
+                    ? userPanel.prefs.displayName
+                    : 'Cuenta y Sincronización'
+                }
+              >
+                {userPanel.vaultUnlocked ? (
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.03em' }}>
+                    {getUserInitials(userPanel.prefs.displayName)}
+                  </span>
+                ) : (
+                  <User size={16} strokeWidth={2.2} />
+                )}
+              </button>
+              {showAccountMenu === 'topbar' && renderAccountDropdown('down')}
+            </div>
 
             <button
               type="button"

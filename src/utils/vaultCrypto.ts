@@ -1,9 +1,18 @@
 const VAULT_PBKDF2_ITERATIONS = 100_000
 
+export function getUserInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'U'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
 export type AiProviderId = 'openai' | 'anthropic' | 'gemini' | 'custom'
 
 export interface UserIntegrationsVault {
   neonDatabaseUrl: string
+  emailProvider?: string
+  emailCustomEndpoint?: string
   resendApiKey: string
   resendFromEmail: string
   resendToEmail: string
@@ -29,8 +38,10 @@ export interface UserIntegrationsVault {
 
 export const EMPTY_VAULT: UserIntegrationsVault = {
   neonDatabaseUrl: '',
+  emailProvider: '',
+  emailCustomEndpoint: '',
   resendApiKey: '',
-  resendFromEmail: 'Laryko <onboarding@resend.dev>',
+  resendFromEmail: '',
   resendToEmail: '',
   r2AccountId: '',
   r2AccessKeyId: '',

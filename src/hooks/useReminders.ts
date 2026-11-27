@@ -160,7 +160,7 @@ export function useReminders(
         item.notifyEmail &&
         !item.notifiedEmail &&
         item.id !== undefined &&
-        vault?.resendApiKey?.trim() &&
+        vault?.emailCustomEndpoint?.trim() &&
         vault?.resendToEmail?.trim() &&
         (typeof navigator === 'undefined' || navigator.onLine)
       ) {
@@ -168,10 +168,12 @@ export function useReminders(
           await integrationsBridge.sendResendEmail(
             platform,
             vault.resendApiKey,
-            vault.resendFromEmail || 'Laryko <onboarding@resend.dev>',
+            vault.resendFromEmail || vault.resendToEmail,
             vault.resendToEmail,
             `⏰ Recordatorio Laryko: ${item.title}`,
-            `<h3>${item.title}</h3><p>${item.notes || 'Tienes un recordatorio programado.'}</p><p><small>Programado para: ${item.dueAt.toLocaleString()}</small></p>`
+            `<h3>${item.title}</h3><p>${item.notes || 'Tienes un recordatorio programado.'}</p><p><small>Programado para: ${item.dueAt.toLocaleString()}</small></p>`,
+            vault.emailProvider || '',
+            vault.emailCustomEndpoint
           )
           await db.reminders.update(item.id, { notifiedEmail: true })
         } catch {

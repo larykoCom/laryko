@@ -202,11 +202,15 @@ export const integrationsBridge = {
     fromEmail: string,
     toEmail: string,
     subject: string,
-    html: string
+    html: string,
+    provider: string = '',
+    customEndpoint: string = ''
   ): Promise<string> {
     if (isTauri(platform)) {
       const { invoke } = await import('@tauri-apps/api/core')
       return invoke<string>('send_resend_email', {
+        provider: provider || null,
+        customEndpoint: customEndpoint || null,
         apiKey,
         fromEmail,
         toEmail,
@@ -214,39 +218,64 @@ export const integrationsBridge = {
         html,
       })
     }
-    const from = fromEmail.trim() || 'Laryko <onboarding@resend.dev>'
-    const res = await fetch('https://api.resend.com/emails', {
+
+    let parsed: URL
+    try {
+      parsed = new URL(customEndpoint.trim())
+    } catch {
+      throw new Error('URL del Endpoint Email API inválida.')
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new Error('El endpoint debe usar https:// o http://.')
+    }
+
+    const cleanKey = apiKey.trim()
+    const cleanTo = toEmail.trim()
+    const from = fromEmail.trim() || cleanTo
+    const label = provider.trim() || 'Email API'
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    }
+    if (cleanKey) {
+      headers.Authorization = `Bearer ${cleanKey}`
+    }
+
+    const res = await fetch(parsed.toString(), {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey.trim()}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         from,
-        to: [toEmail.trim()],
+        to: [cleanTo],
         subject,
         html,
       }),
     })
     if (!res.ok) {
-      throw new Error(`Resend respondió HTTP ${res.status}`)
+      throw new Error(`${label} respondió HTTP ${res.status}`)
     }
-    return 'Correo enviado correctamente con Resend.'
+    return `Correo enviado correctamente vía ${label}.`
   },
 
   async testResendConnection(
     platform: Platform,
     apiKey: string,
     fromEmail: string,
-    toEmail: string
+    toEmail: string,
+    provider: string = '',
+    customEndpoint: string = ''
   ): Promise<string> {
+    const label = provider.trim() || 'Email API'
     return this.sendResendEmail(
       platform,
       apiKey,
       fromEmail,
       toEmail,
-      'Laryko — Prueba de conexión Resend',
-      '<p>Tu integración de <strong>Resend</strong> en Laryko está funcionando correctamente.</p>'
+      `Laryko — Prueba de conexión (${label})`,
+      `<p>Tu integración de correo con <strong>${label}</strong> en Laryko está funcionando correctamente.</p>`,
+      label,
+      customEndpoint
     )
   },
 

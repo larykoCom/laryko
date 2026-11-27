@@ -63,7 +63,10 @@ export function useUserPanel(platform: Platform) {
   }, [])
 
   const unlockOrInitVault = useCallback(
-    async (secret: string): Promise<boolean> => {
+    async (
+      secret: string,
+      profile?: { displayName?: string; email?: string }
+    ): Promise<boolean> => {
       const clean = secret.trim()
       if (clean.length < 4) {
         setStatusMessage({
@@ -88,7 +91,15 @@ export function useUserPanel(platform: Platform) {
           )
           setVault(decrypted)
         } else {
-          const envelope = await encryptVault(EMPTY_VAULT, clean)
+          const cleanName = profile?.displayName?.trim() || 'Usuario Laryko'
+          const cleanEmail = profile?.email?.trim().toLowerCase() || ''
+          const initialVault: UserIntegrationsVault = {
+            ...EMPTY_VAULT,
+            accountUsername: cleanName,
+            accountEmail: cleanEmail,
+            resendToEmail: cleanEmail,
+          }
+          const envelope = await encryptVault(initialVault, clean)
           await db.userVault.put({
             id: 1,
             salt: envelope.salt,
@@ -96,7 +107,13 @@ export function useUserPanel(platform: Platform) {
             ciphertext: envelope.ciphertext,
             updatedAt: new Date(),
           })
-          setVault(EMPTY_VAULT)
+          const existingPrefs = (await db.userPrefs.get(1)) ?? DEFAULT_PREFS
+          await db.userPrefs.put({
+            ...existingPrefs,
+            displayName: cleanName,
+            updatedAt: new Date(),
+          })
+          setVault(initialVault)
         }
         setPassphrase(clean)
         setVaultUnlocked(true)
@@ -660,7 +677,13 @@ export function useUserPanel(platform: Platform) {
   )
 
   const testResend = useCallback(
-    async (apiKey: string, fromEmail: string, toEmail: string) => {
+    async (
+      apiKey: string,
+      fromEmail: string,
+      toEmail: string,
+      provider = 'resend',
+      customEndpoint = ''
+    ) => {
       setBusy(true)
       setStatusMessage(null)
       try {
@@ -668,7 +691,9 @@ export function useUserPanel(platform: Platform) {
           platform,
           apiKey,
           fromEmail,
-          toEmail
+          toEmail,
+          provider,
+          customEndpoint
         )
         setStatusMessage({ type: 'ok', text: msg })
       } catch (e) {
@@ -945,7 +970,9 @@ export function useUserPanel(platform: Platform) {
   )
 
   const hasDatabaseConfigured = Boolean(vault.neonDatabaseUrl.trim())
-  const hasResendConfigured = Boolean(vault.resendApiKey.trim() && vault.resendToEmail.trim())
+  const hasResendConfigured = Boolean(
+    (vault.emailCustomEndpoint ?? '').trim() && vault.resendToEmail.trim()
+  )
 
   return {
     hasVaultSetup,

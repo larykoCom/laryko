@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1795814236.3732984,
-    "seen": 1795815080.287772,
-    "ast_hash": "370ba5d3007f6ac00598ecaac512af45",
+    "mtime": 1795816677.1087406,
+    "seen": 1795816888.085634,
+    "ast_hash": "fc548e9310480cc81c42fda4996be225",
     "semantic_hash": ""
   },
   "src/components/AiAssistant/AiAssistant.tsx": {
@@ -384,9 +384,9 @@
     "semantic_hash": "659b761b74f90faef9a0c9f6fa2fd730"
   },
   "src/components/UserPanel/UserPanel.tsx": {
-    "mtime": 1795815061.1750603,
-    "seen": 1795815080.2877948,
-    "ast_hash": "43853506b1c81e8d09aa6122a097c184",
+    "mtime": 1795816859.6244166,
+    "seen": 1795816888.0856571,
+    "ast_hash": "5c097c34011ae5df54c934a1fe00a3e6",
     "semantic_hash": ""
   },
   "src/components/UserPanel/index.ts": {
@@ -474,15 +474,15 @@
     "semantic_hash": "e41643f4f00ad61ac5bf388e6fd3b407"
   },
   "src/hooks/useReminders.ts": {
-    "mtime": 1795671029.3508456,
-    "seen": 1795812893.540545,
-    "ast_hash": "73aa7cbe5d57f671f85a2d1b0d5f74a9",
+    "mtime": 1795816857.109043,
+    "seen": 1795816888.085669,
+    "ast_hash": "cf8ce5cdeb97bdcb7d40b7e3d22bc0c2",
     "semantic_hash": ""
   },
   "src/hooks/useUserPanel.ts": {
-    "mtime": 1795815025.7356453,
-    "seen": 1795815080.2878091,
-    "ast_hash": "f5280e0b894bd06c331b240c1ddb218d",
+    "mtime": 1795816855.9256675,
+    "seen": 1795816888.08567,
+    "ast_hash": "f60a1fe639867b920ec73e232cb43bca",
     "semantic_hash": ""
   },
   "src/main.tsx": {
@@ -516,9 +516,9 @@
     "semantic_hash": ""
   },
   "src/utils/integrationsBridge.ts": {
-    "mtime": 1795646022.9327548,
-    "seen": 1795646092.5307982,
-    "ast_hash": "092ebded09684febc1e1abe4469d07ce",
+    "mtime": 1795816854.4223356,
+    "seen": 1795816888.085675,
+    "ast_hash": "fec5d28aca7fa1341555abd3081fad01",
     "semantic_hash": ""
   },
   "src/utils/multiSessionBridge.ts": {
@@ -558,9 +558,9 @@
     "semantic_hash": "a047edda46654955550bf99d9ffa64fa"
   },
   "src/utils/vaultCrypto.ts": {
-    "mtime": 1795815007.5885127,
-    "seen": 1795815080.28782,
-    "ast_hash": "b44857634442e01181022eeb398f75b1",
+    "mtime": 1795816818.3552673,
+    "seen": 1795816888.085682,
+    "ast_hash": "7cd6cb4444cdefd8c2c63bf346608781",
     "semantic_hash": ""
   },
   "src/vite-env.d.ts": {
@@ -1146,9 +1146,9 @@
     "semantic_hash": ""
   },
   "src-tauri/src/commands/integrations.rs": {
-    "mtime": 1795814029.0841377,
-    "seen": 1795814154.212784,
-    "ast_hash": "a5f99b0bfb50aeaf2c03dff3a7a02f00",
+    "mtime": 1795816827.609524,
+    "seen": 1795816888.085623,
+    "ast_hash": "d3d8bc93d9aa7cfb97dbb864713e1d96",
     "semantic_hash": ""
   },
   "src-tauri/src/commands/mod.rs": {
